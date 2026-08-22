@@ -69,7 +69,7 @@ delete deps['@vouch/core'];
 delete deps['@vouch/services'];
 
 writeFileSync(join(out, 'package.json'), `${JSON.stringify({
-  name: '@saifsiddiqui/vouch',
+  name: 'codevouch',
   version: '0.1.0',
   description: 'Know what you shipped. Vouch checks whether you can actually defend the code, packages and services in your own repo.',
   license: 'MIT',
@@ -80,7 +80,8 @@ writeFileSync(join(out, 'package.json'), `${JSON.stringify({
   files: ['dist', 'vendor', 'plugin', 'docs', 'README.md'],
   dependencies: deps,
   optionalDependencies: corePkg.optionalDependencies ?? {},
-  publishConfig: { access: 'public' },
+  repository: { type: 'git', url: 'git+https://github.com/saif-09/codevouch.git' },
+  author: 'saif-09',
 }, null, 2)}\n`);
 
 // the published plugin points at the installed CLI, not the dev checkout

@@ -36,7 +36,7 @@ export function matchPathZone(zones: Zone[], path: string): Zone | null {
 }
 
 // Token-boundary matching: 'auth' as a segment, never inside a word like
-// "class-variance-authority" (a real false positive caught on the shoppin run).
+// "class-variance-authority" (a real false positive found on a production repo).
 const CRITICAL_DEP = /(^|[-_@/])o?auth(?=[-_/.]|$)|jsonwebtoken|passport|(^|[-_@/])jose(?=[-_/.]|$)|bcrypt|argon2|(^|[-_@/])stripe(?=[-_/.]|$)|razorpay|braintree|paypal|(^|[-_@/])crypto(?=[-_/.]|$)|secret|keytar|clerk/i;
 
 export function dependencyClass(name: string, dev: boolean): string {

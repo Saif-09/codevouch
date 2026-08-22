@@ -7,7 +7,7 @@ Vouch never blocks you and never runs on its own schedule. You call it, or it ap
 ## 1. Install
 
 ```sh
-npm install -g @saifsiddiqui/vouch
+npm install -g codevouch
 vouch --version
 ```
 
@@ -29,7 +29,7 @@ Everything except question-writing and grading works with no AI at all, includin
 Run this inside any git repository you want to stay sharp on.
 
 ```sh
-cd ~/Developer/Workspace/shoppin
+cd ~/code/your-project
 vouch init
 ```
 

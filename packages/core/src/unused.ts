@@ -6,7 +6,7 @@ import type { ImpactData } from './feeds.js';
  *
  * This was not in the spec. It fell out of Dossiers being grounded in real
  * call sites: a package with zero call sites is a package nothing imports,
- * and the first real run against shoppin surfaced one. It is worth naming
+ * and the first real run against a production app surfaced one. It is worth naming
  * explicitly rather than leaving implicit in a dossier's prose.
  *
  * The honesty rule for this feature: Vouch finds IMPORTS in TypeScript,
