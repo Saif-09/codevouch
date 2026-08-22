@@ -112,7 +112,7 @@ The map is the artifact a user would screenshot, so it is the one screen where v
 Numbered so it can be checked rather than felt.
 
 1. `vouch init` on a cold repo completes in under 90 seconds including the first ingest, and proposes zones drawn from the repo's real contents.
-2. Run against real local repos as first fixtures: **`slate`, `tread`, `silai`, `shoppin`**. Every direct dependency in each lockfile either produces a Dossier or is explicitly classified out of zone. No silent omissions.
+2. Run against real local repositories as the first fixtures, including at least one large production app. Every direct dependency in each lockfile either produces a Dossier or is explicitly classified out of zone. No silent omissions.
 3. **Call-site accuracy.** For a fixture repo with a hand-labelled dependency set, reported call sites match the labels. Zero invented call sites: an assertion, not a hope.
 4. **Withholding is enforced in code.** An automated test proves no brief body, `probe_expected`, or reveal payload is ever serialized to a client before `reps.answered_at` is set. Same enforcement posture as launch-readiness uses for its free-versus-gated split.
 5. **Redaction.** A test asserting a diff containing an API key, a `.env` file, a PEM block and a credentialled database URL never reaches the extraction backend. The never-send list is not overridable by config.

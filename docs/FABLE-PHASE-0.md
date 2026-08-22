@@ -94,7 +94,7 @@ THE TWO NUMBERS (spec §9). Explicability beats precision, because the user must
 
 QUALITY BARS / DEFINITION OF DONE
 1. `vouch init` on a cold repo completes in under 90 seconds including first ingest, proposing zones drawn from the repo's real contents.
-2. Run it against slate, tread, silai and shoppin before anything else, since our own repos are the first fixtures. Every direct dependency either produces a Dossier or is explicitly classified out of zone. No silent omissions.
+2. Run it against our own real repositories before anything else, since they are the first fixtures. Every direct dependency either produces a Dossier or is explicitly classified out of zone. No silent omissions.
 3. Call-site accuracy asserted against a hand-labelled fixture repo. Zero invented call sites.
 4. An automated test proves no probe_expected or reveal payload is ever serialized to a client before reps.answered_at is set.
 5. A test asserts a diff containing an API key, a .env file, a PEM block and a credentialled database URL never reaches the extraction backend.
