@@ -70,7 +70,7 @@ delete deps['@vouch/services'];
 
 writeFileSync(join(out, 'package.json'), `${JSON.stringify({
   name: 'codevouch',
-  version: '0.1.0',
+  version: '0.1.1',
   description: 'Know what you shipped. Vouch checks whether you can actually defend the code, packages and services in your own repo.',
   license: 'MIT',
   type: 'module',

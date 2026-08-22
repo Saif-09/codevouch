@@ -1,6 +1,12 @@
 # Vouch: usage
 
-Vouch never blocks you and never runs on its own schedule. You call it, or it appears at the end of a work session. If you ignore it for a week, nothing breaks and nothing nags.
+## In one paragraph
+
+You build with AI, it works, you move on. Later you cannot explain your own code: why that package is there, what happens when that call fails, what the thing you shipped actually assumes. Vouch finds those gaps by asking you questions about your own repository and showing you where your confidence ran ahead of what you could actually produce. It never blocks you and never stops you using AI.
+
+Start with `vouch unused`. It takes two minutes, needs no setup and no AI, and usually finds real weight you can delete today.
+
+Vouch never runs on its own schedule. You call it, or it appears at the end of a work session. If you ignore it for a week, nothing breaks and nothing nags.
 
 ---
 

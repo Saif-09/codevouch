@@ -1,33 +1,147 @@
 # Vouch
 
-Own what you shipped. Vouch watches the code, packages, and services that land in your repository (AI-written or not) and makes you demonstrably able to defend them: the approach, the logic, why each dependency is there, and what it costs you.
-
-It never blocks anything. It is not a linter, a code reviewer, or a tool that explains your codebase to you. Every adjacent tool answers questions *for* you, which is precisely the condition under which the illusion of understanding survives. Vouch asks you to produce the answer, then shows you the gap between what you thought you knew and what you produced.
-
-**[Usage guide](docs/USAGE.md)** starts here. Also: `docs/RESEARCH.md` (evidence base), `docs/VOUCH-TECH-SPEC.md` (architecture), `docs/WAVE-1-SPEC.md` (scope).
-
-## Quick start
+**You shipped it. Can you explain it?**
 
 ```sh
-pnpm install && pnpm build
-cd ~/your-repo
-vouch init        # pick what you want to stay sharp at, about 90 seconds
-vouch digest      # after a work session: 5 items, under 3 minutes
-vouch unused      # packages nothing in your source imports
+npm install -g codevouch
 ```
+
+---
+
+## The problem this solves
+
+You asked AI for a feature. It worked. You merged it and moved on.
+
+Three months later it breaks at 2am, and you are reading code with your name on the commit like a stranger wrote it. You do not know why that package is there. You do not know what happens when that call fails. You built it, and you cannot defend it.
+
+That gap is invisible until it costs you: in an outage, in a code review, in an interview, or the moment someone asks "why did you do it this way?" and you realise you do not know.
+
+Vouch makes the gap visible while it is still cheap to fix.
+
+**It never blocks you and never stops you using AI.** It is not a linter or a code reviewer. Other tools explain your codebase *to* you, which feels like understanding and is not. Vouch asks *you* to produce the answer first, then shows you the difference.
+
+---
+
+## What you actually get
+
+### 1. Packages you are shipping for nothing
+
+Run one command in any repo. No setup, no AI key, no account.
+
+```sh
+vouch unused
+```
+
+Real output from a production Next.js app:
+
+```
+16 dependencies nothing imports  (10.7 MB installed)
+  unused? @prisma/client            8.0 MB
+  unused? @growthbook/growthbook    2.7 MB
+  unused? zod, react-icons, next-themes, pg, critters, ...
+```
+
+Every one verified by hand: no false positives. That is 10.7 MB of install weight, supply-chain surface, and dependency updates you were carrying for no reason.
+
+### 2. Questions about your own code that you cannot answer
+
+After a work session:
+
+```sh
+vouch digest
+```
+
+It picks the important things that landed and asks you one real question each. You rate your confidence 1 to 7 first, so you find out where you were wrong about yourself:
+
+```
+zod
+  where it lives in your code:
+    src/api/env.ts:1  import { z } from 'zod';
+
+How well do you understand what zod does here? [1..7]  6
+> What happens at boot when an env var fails validation?
+```
+
+Answer it, and you get the real answer plus install size, licence, known vulnerabilities, and for paid services, what it costs at 10k users and what breaks when it goes down.
+
+### 3. A check on features you shipped but cannot describe
+
+```sh
+vouch defend
+```
+
+It shows you only the filenames and asks you to reconstruct, from memory, what your change does and what it assumes. Then it reveals the brief it wrote when the code landed.
+
+On a real wishlist feature, that brief surfaced things the author had not noticed:
+
+```
+where it breaks first
+  SSR execution throws ReferenceError: window.localStorage in readLocal()
+  Rapid add() calls create duplicates, no client-side dedup
+  localStorage quota exceeded leaves the cache diverged from storage
+```
+
+Three real bugs, found by being asked to explain your own code.
+
+### 4. One honest number
+
+```
+the gap: you rated 6/7, you demonstrated 4/7
+```
+
+**The Gap** is how far your confidence runs ahead of what you can actually produce, per area of your codebase. It is specific, personal, and very hard to argue with. Watching it shrink is the point of the whole tool.
+
+---
+
+## How you would actually use it
+
+**Day one (2 minutes).** `vouch unused` in your main repo. Delete what you are not using. That alone pays for the install.
+
+**Day one, part two (90 seconds).** `vouch init`. It shows you areas of your code and you press one key each: keep sharp, or outsourced. Be honest and lean toward outsourced. Nobody needs to stay sharp on CSS scaffolding. Auth and payments are a different story.
+
+**Every few days (3 minutes).** `vouch digest` after you finish work. Five questions, maximum. You will get some wrong. That is the entire value.
+
+**Occasionally (seconds).** `vouch cards` re-tests things you learned weeks ago, free and instant. Knowledge you stop using visibly fades, so you can see it going.
+
+**Before a review or an interview.** `vouch map` shows your whole repo coloured by what you can defend. The dark red is where you would struggle if someone asked.
+
+---
+
+## Who this is for
+
+- You ship fast with AI and have a quiet suspicion you are getting worse
+- You inherited a codebase, or you *are* the person who wrote it and it feels inherited
+- You are going into interviews and want to know your real gaps, not your imagined ones
+- You have to be on call for code you did not fully read
+
+**Not for you if** you want a tool that reviews your code or explains it for you. That is the opposite of what this does.
+
+---
+
+## Everything else
 
 | Command | What it does |
 |---|---|
-| `vouch init` | Register a repo, choose keep-sharp zones, install the commit hook |
+| `vouch unused` | Packages nothing in your source imports |
+| `vouch init` | Set up a repo, choose what to stay sharp at |
 | `vouch digest` | End-of-session review, five items maximum |
 | `vouch defend` | Reconstruct a change you shipped, then see the real brief |
 | `vouch cards` | Free re-tests of what you already learned |
-| `vouch unused` | Dependencies nothing imports |
-| `vouch map` | Dashboard, or `--png` for the shareable image |
-| `vouch trend` | Vouched % and the gap over time |
-| `vouch status` | Where you stand |
-| `vouch plugin` | Install real-time predictions into Claude Code |
+| `vouch map` | Dashboard, or `--png` for a shareable image |
+| `vouch trend` | Your progress over weeks |
+| `vouch status` | Where you stand, and the one useful next thing |
+| `vouch plugin` | Predictions inside Claude Code, before it answers |
 | `vouch purge` | Delete everything, leave nothing behind |
+
+Needs **Node 24+**. Nothing compiles at install.
+
+The AI parts (writing questions, grading answers) use your own `claude` CLI if you have Claude Code, or an AI Gateway key. **`vouch unused`, the map, and cards need no AI at all.** Typical cost is a few dollars a month; `vouch status` shows the running total.
+
+**Your code stays yours.** No account, no server, no telemetry. Redacted excerpts go to Anthropic through your own CLI; package names go to three public registries for licence and vulnerability data. `.env` files, keys and certificates are never sent, and the outbound host list is enforced in code. `vouch purge` leaves nothing behind.
+
+**[Full usage guide](docs/USAGE.md)**
+
+---
 
 ## Unused dependencies
 
