@@ -1,70 +1,94 @@
 #!/usr/bin/env node
 /**
- * Produce a single self-contained publishable package.
+ * Stage the publishable package into build/publish/.
  *
- * The monorepo splits core/services/cli for development, but a user should
- * install ONE thing. This copies the built output of the internal packages
- * into the CLI package as `vendor/`, rewrites the workspace imports to
- * relative paths, and copies the Claude Code plugin alongside.
+ * The monorepo splits core/services/cli for development; a user installs ONE
+ * thing. This assembles a self-contained package OUTSIDE the workspace, so
+ * the workspace itself keeps resolving normally (pnpm's strict layout does
+ * not hoist core's dependencies into the CLI package, so vendoring in place
+ * breaks local runs and tests).
  */
-import { cpSync, rmSync, mkdirSync, readdirSync, readFileSync, writeFileSync, statSync } from 'node:fs';
+import { cpSync, rmSync, mkdirSync, readdirSync, readFileSync, writeFileSync, statSync, existsSync } from 'node:fs';
 import { join, relative, dirname } from 'node:path';
 
 const root = process.cwd();
-const cli = join(root, 'packages', 'cli');
-const vendor = join(cli, 'vendor');
+const out = join(root, 'build', 'publish');
+const req = (p) => {
+  if (!existsSync(p)) throw new Error(`missing ${p}. Run \`pnpm build\` first.`);
+  return p;
+};
 
-rmSync(vendor, { recursive: true, force: true });
-mkdirSync(vendor, { recursive: true });
-cpSync(join(root, 'packages', 'core', 'dist'), join(vendor, 'core'), { recursive: true });
-cpSync(join(root, 'packages', 'services', 'dist'), join(vendor, 'services'), { recursive: true });
+rmSync(out, { recursive: true, force: true });
+mkdirSync(out, { recursive: true });
 
-// the plugin ships with the CLI so `vouch plugin` can point at a real path
-rmSync(join(cli, 'plugin'), { recursive: true, force: true });
-cpSync(join(root, 'packages', 'plugin'), join(cli, 'plugin'), {
+cpSync(req(join(root, 'packages', 'cli', 'dist')), join(out, 'dist'), { recursive: true });
+cpSync(req(join(root, 'packages', 'core', 'dist')), join(out, 'vendor', 'core'), { recursive: true });
+cpSync(req(join(root, 'packages', 'services', 'dist')), join(out, 'vendor', 'services'), { recursive: true });
+cpSync(join(root, 'packages', 'plugin'), join(out, 'plugin'), {
   recursive: true,
   filter: (src) => !src.includes('node_modules'),
 });
+for (const f of ['README.md', 'LICENSE']) {
+  if (existsSync(join(root, f))) cpSync(join(root, f), join(out, f));
+}
+mkdirSync(join(out, 'docs'), { recursive: true });
+cpSync(join(root, 'docs', 'USAGE.md'), join(out, 'docs', 'USAGE.md'));
 
 function walk(dir) {
-  const out = [];
+  const acc = [];
   for (const entry of readdirSync(dir)) {
     const p = join(dir, entry);
-    if (statSync(p).isDirectory()) out.push(...walk(p));
-    else if (p.endsWith('.js')) out.push(p);
+    if (statSync(p).isDirectory()) acc.push(...walk(p));
+    else if (p.endsWith('.js')) acc.push(p);
   }
-  return out;
+  return acc;
 }
 
-// rewrite bare workspace specifiers to relative paths inside the bundle
 let rewritten = 0;
-for (const file of [...walk(join(cli, 'dist')), ...walk(vendor)]) {
-  let text = readFileSync(file, 'utf8');
-  const before = text;
-  const toCore = relative(dirname(file), join(vendor, 'core', 'index.js')).replace(/\\/g, '/');
-  const toCoreDaemon = relative(dirname(file), join(vendor, 'core', 'daemon')).replace(/\\/g, '/');
-  const toServices = relative(dirname(file), join(vendor, 'services', 'index.js')).replace(/\\/g, '/');
-  text = text
-    .replace(/(['"])@vouch\/core\/daemon-version\1/g, (_m, q) => `${q}${toCoreDaemon}/version.js${q}`)
-    .replace(/(['"])@vouch\/core\/daemon\1/g, (_m, q) => `${q}${toCoreDaemon}/main.js${q}`)
-    .replace(/(['"])@vouch\/core\1/g, (_m, q) => `${q}${toCore.startsWith('.') ? toCore : './' + toCore}${q}`)
-    .replace(/(['"])@vouch\/services\1/g, (_m, q) => `${q}${toServices.startsWith('.') ? toServices : './' + toServices}${q}`);
-  if (text !== before) {
-    writeFileSync(file, text);
+for (const file of walk(out)) {
+  const text = readFileSync(file, 'utf8');
+  const rel = (target) => {
+    const r = relative(dirname(file), target).replace(/\\/g, '/');
+    return r.startsWith('.') ? r : `./${r}`;
+  };
+  const next = text
+    .replace(/(['"])@vouch\/core\/daemon-version\1/g, (_m, q) => `${q}${rel(join(out, 'vendor', 'core', 'daemon', 'version.js'))}${q}`)
+    .replace(/(['"])@vouch\/core\/daemon\1/g, (_m, q) => `${q}${rel(join(out, 'vendor', 'core', 'daemon', 'main.js'))}${q}`)
+    .replace(/(['"])@vouch\/core\1/g, (_m, q) => `${q}${rel(join(out, 'vendor', 'core', 'index.js'))}${q}`)
+    .replace(/(['"])@vouch\/services\1/g, (_m, q) => `${q}${rel(join(out, 'vendor', 'services', 'index.js'))}${q}`);
+  if (next !== text) {
+    writeFileSync(file, next);
     rewritten++;
   }
 }
 
-// the published package depends only on real npm packages
-const pkgPath = join(cli, 'package.json');
-const pkg = JSON.parse(readFileSync(pkgPath, 'utf8'));
+const cliPkg = JSON.parse(readFileSync(join(root, 'packages', 'cli', 'package.json'), 'utf8'));
 const corePkg = JSON.parse(readFileSync(join(root, 'packages', 'core', 'package.json'), 'utf8'));
-pkg.dependencies = { ...pkg.dependencies, ...corePkg.dependencies };
-delete pkg.dependencies['@vouch/core'];
-delete pkg.dependencies['@vouch/services'];
-pkg.optionalDependencies = { ...(corePkg.optionalDependencies ?? {}) };
-writeFileSync(pkgPath, `${JSON.stringify(pkg, null, 2)}\n`);
+const deps = { ...cliPkg.dependencies, ...corePkg.dependencies };
+delete deps['@vouch/core'];
+delete deps['@vouch/services'];
 
-console.log(`bundled: ${rewritten} files rewritten`);
-console.log('dependencies:', Object.keys(pkg.dependencies).join(', '));
-console.log('optional:', Object.keys(pkg.optionalDependencies).join(', ') || '(none)');
+writeFileSync(join(out, 'package.json'), `${JSON.stringify({
+  name: '@saifsiddiqui/vouch',
+  version: '0.1.0',
+  description: 'Know what you shipped. Vouch checks whether you can actually defend the code, packages and services in your own repo.',
+  license: 'MIT',
+  type: 'module',
+  bin: { vouch: 'dist/main.js' },
+  engines: { node: '>=24.0.0' },
+  keywords: ['ai', 'learning', 'code-comprehension', 'dependencies', 'claude', 'technical-debt'],
+  files: ['dist', 'vendor', 'plugin', 'docs', 'README.md'],
+  dependencies: deps,
+  optionalDependencies: corePkg.optionalDependencies ?? {},
+  publishConfig: { access: 'public' },
+}, null, 2)}\n`);
+
+// the published plugin points at the installed CLI, not the dev checkout
+const pluginPkgDir = join(out, 'plugin');
+if (existsSync(pluginPkgDir)) {
+  writeFileSync(join(pluginPkgDir, 'INSTALLED.md'),
+    'This directory is the Claude Code plugin shipped with @saifsiddiqui/vouch.\nRun `vouch plugin` for the install command.\n');
+}
+
+console.log(`staged build/publish: ${rewritten} import paths rewritten`);
+console.log('dependencies:', Object.keys(deps).join(', '));

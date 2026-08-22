@@ -19,7 +19,7 @@ describe('purge leaves nothing behind (DoD #14)', () => {
     const env = { ...process.env, VOUCH_HOME: home };
 
     // `status` spawns a real daemon and creates the database
-    spawnSync(process.execPath, [CLI, 'status'], { cwd: repo, env, encoding: 'utf8' });
+    spawnSync(process.execPath, ['--no-warnings', CLI, 'status'], { cwd: repo, env, encoding: 'utf8' });
     expect(existsSync(join(home, 'vouch.db'))).toBe(true);
     const info = JSON.parse(readFileSync(join(home, 'daemon.json'), 'utf8'));
 
@@ -33,7 +33,7 @@ describe('purge leaves nothing behind (DoD #14)', () => {
     const hookPath = join(repo, '.git', 'hooks', 'post-commit');
     expect(readFileSync(hookPath, 'utf8')).toContain('vouch-tick');
 
-    const res = spawnSync(process.execPath, [CLI, 'purge', '--yes'], { cwd: repo, env, encoding: 'utf8' });
+    const res = spawnSync(process.execPath, ['--no-warnings', CLI, 'purge', '--yes'], { cwd: repo, env, encoding: 'utf8' });
     expect(res.stdout).toMatch(/nothing left behind/);
     // the daemon was stopped first, so nothing recreates the home directory
     expect(existsSync(home)).toBe(false);
@@ -49,7 +49,7 @@ describe('destructive and interactive commands refuse without a terminal', () =>
     writeFileSync(join(repo, 'package.json'), '{}');
     const env = { ...process.env, VOUCH_HOME: home };
 
-    const res = spawnSync(process.execPath, [CLI, 'purge'], { cwd: repo, env, input: 'y', encoding: 'utf8' });
+    const res = spawnSync(process.execPath, ['--no-warnings', CLI, 'purge'], { cwd: repo, env, input: 'y', encoding: 'utf8' });
     expect(res.status).toBe(1);
     expect(res.stderr).toMatch(/interactive terminal/);
     expect(existsSync(home)).toBe(true); // refused means nothing was touched
@@ -61,7 +61,7 @@ describe('destructive and interactive commands refuse without a terminal', () =>
     execFileSync('git', ['init', '-q'], { cwd: repo });
     const env = { ...process.env, VOUCH_HOME: home };
 
-    const res = spawnSync(process.execPath, [CLI, 'digest'], { cwd: repo, env, encoding: 'utf8' });
+    const res = spawnSync(process.execPath, ['--no-warnings', CLI, 'digest'], { cwd: repo, env, encoding: 'utf8' });
     expect(res.status).toBe(1);
     expect(res.stderr).toMatch(/interactive terminal/);
     // refused before the daemon was ever contacted, so no database exists yet

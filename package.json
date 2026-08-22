@@ -3,7 +3,9 @@
   "private": true,
   "scripts": {
     "build": "pnpm -r --filter '!@vouch/dashboard' build",
-    "test": "vitest run"
+    "test": "vitest run",
+    "package": "pnpm build && node scripts-build-dist.mjs",
+    "release": "pnpm package && cd build/publish && npm publish"
   },
   "devDependencies": {
     "typescript": "^5.7.0",

@@ -1,8 +1,0 @@
-{
-  "mcpServers": {
-    "vouch": {
-      "command": "node",
-      "args": ["--no-warnings", "${CLAUDE_PLUGIN_ROOT}/scripts/mcp-server.mjs"]
-    }
-  }
-}
