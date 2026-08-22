@@ -15,15 +15,14 @@
   },
   "dependencies": {
     "@vouch/services": "workspace:*",
-    "better-sqlite3": "^12.4.1",
     "simple-git": "^3.28.0",
     "ts-morph": "^28.0.0",
     "yaml": "^2.8.0",
     "smol-toml": "^1.4.0",
-    "ignore": "^7.0.0",
-    "@resvg/resvg-js": "^2.6.2"
+    "ignore": "^7.0.0"
   },
-  "devDependencies": {
-    "@types/better-sqlite3": "^7.6.12"
+  "devDependencies": {},
+  "optionalDependencies": {
+    "@resvg/resvg-js": "^2.6.2"
   }
 }

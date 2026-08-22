@@ -1,4 +1,5 @@
-#!/usr/bin/env node
+#!/usr/bin/env -S node --no-warnings
+import './quiet.js';
 import { Command } from 'commander';
 import { basename, resolve } from 'node:path';
 import { existsSync, rmSync, readFileSync } from 'node:fs';
@@ -7,6 +8,15 @@ import { keypress, confidence, textInput, paint, hr } from './ui.js';
 import { runRep, runCard } from './rep-runner.js';
 import { installPostCommitHook, removePostCommitHook } from './hook.js';
 import { vouchHome, daemonInfoPath, dbPath } from '@vouch/core';
+
+function pkgVersion(): string {
+  try {
+    const url = new URL('../package.json', import.meta.url);
+    return JSON.parse(readFileSync(url, 'utf8')).version ?? '0.0.0';
+  } catch {
+    return '0.0.0';
+  }
+}
 
 const program = new Command();
 
@@ -31,7 +41,7 @@ function requireTty(): void {
 program
   .name('vouch')
   .description('Own what you shipped. Vouch shows you which parts of your own codebase you can actually defend.')
-  .version('0.0.1');
+  .version(pkgVersion());
 
 // `vouch` with no arguments: status plus the single most useful next action.
 program.action(async () => {
@@ -286,7 +296,7 @@ program
     if (opts.png) {
       const out = resolve(opts.png);
       const r = await api('GET', `/map/png?root=${encodeURIComponent(root())}&out=${encodeURIComponent(out)}`);
-      console.log(r.written);
+      console.log(r.written ?? paint.warn(r.fallback));
       return;
     }
     const { spawn } = await import('node:child_process');

@@ -1,3 +1,4 @@
+import '../quiet.js';
 import { runDaemon } from './server.js';
 
 runDaemon().catch((e) => {

@@ -45,10 +45,10 @@ export async function daemonPort(): Promise<number> {
   }
   // spawn detached and wait for the info file
   const daemonMain = require.resolve('@vouch/core/daemon');
-  const child = spawn(process.execPath, [daemonMain], {
+  const child = spawn(process.execPath, ['--no-warnings', daemonMain], {
     detached: true,
     stdio: 'ignore',
-    env: process.env,
+    env: { ...process.env, NODE_NO_WARNINGS: '1' },
   });
   child.unref();
   for (let i = 0; i < 50; i++) {

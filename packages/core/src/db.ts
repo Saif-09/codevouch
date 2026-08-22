@@ -1,7 +1,47 @@
-import Database from 'better-sqlite3';
-import type { Database as Db } from 'better-sqlite3';
+import { DatabaseSync } from 'node:sqlite';
 
-export type { Db };
+/**
+ * Storage runs on Node's built-in SQLite rather than a native addon.
+ *
+ * better-sqlite3 compiles on install, which means every user needs a C++
+ * toolchain before they can run `vouch`. `node:sqlite` ships with Node 24,
+ * so installing Vouch is just downloading JavaScript.
+ *
+ * This adapter keeps the surface the rest of the codebase already uses
+ * (prepare/run/get/all, exec, close), and normalises rows: node:sqlite
+ * returns null-prototype objects, which behave oddly with deep-equality
+ * checks and with anything that expects a plain object.
+ */
+export interface Statement {
+  run(...params: unknown[]): { changes: number | bigint; lastInsertRowid: number | bigint };
+  get(...params: unknown[]): unknown;
+  all(...params: unknown[]): unknown[];
+}
+
+export interface Db {
+  prepare(sql: string): Statement;
+  exec(sql: string): void;
+  close(): void;
+}
+
+function plain<T>(row: T): T {
+  return row && typeof row === 'object' ? ({ ...row } as T) : row;
+}
+
+function wrap(inner: DatabaseSync): Db {
+  return {
+    prepare(sql: string): Statement {
+      const stmt = inner.prepare(sql);
+      return {
+        run: (...params: unknown[]) => stmt.run(...(params as never[])) as never,
+        get: (...params: unknown[]) => plain(stmt.get(...(params as never[]))),
+        all: (...params: unknown[]) => (stmt.all(...(params as never[])) as unknown[]).map(plain),
+      };
+    },
+    exec: (sql: string) => inner.exec(sql),
+    close: () => inner.close(),
+  };
+}
 
 // Spec §3, with three documented additions the spec requires functionally:
 //   nodes.content_hash  — §3.1 says renames match "by symbol first and content hash second"
@@ -148,9 +188,9 @@ function migrate(db: Db): void {
 }
 
 export function openDb(path: string): Db {
-  const db = new Database(path);
-  db.pragma('journal_mode = WAL');
-  db.pragma('foreign_keys = ON');
+  const db = wrap(new DatabaseSync(path));
+  db.exec('PRAGMA journal_mode = WAL');
+  db.exec('PRAGMA foreign_keys = ON');
   db.exec(SCHEMA);
   migrate(db);
   return db;

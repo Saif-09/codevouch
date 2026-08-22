@@ -219,12 +219,12 @@ describe('schema migrations', () => {
     const { mkdtempSync } = await import('node:fs');
     const { tmpdir } = await import('node:os');
     const { join } = await import('node:path');
-    const Database = (await import('better-sqlite3')).default;
+    const { DatabaseSync } = await import('node:sqlite');
     const { openDb } = await import('../src/db.js');
 
     const file = join(mkdtempSync(join(tmpdir(), 'vouch-migrate-')), 'old.db');
     // an old-shaped table, exactly as a previous release would have left it
-    const old = new Database(file);
+    const old = new DatabaseSync(file);
     old.exec(`CREATE TABLE sharp_zones (
       id TEXT PRIMARY KEY, repo_id TEXT NOT NULL, kind TEXT NOT NULL, pattern TEXT NOT NULL,
       name TEXT NOT NULL DEFAULT '', stance TEXT NOT NULL, critical INTEGER NOT NULL DEFAULT 0,

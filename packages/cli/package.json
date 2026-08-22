@@ -1,13 +1,45 @@
 {
-  "name": "@vouch/cli",
-  "version": "0.0.1",
-  "private": true,
+  "name": "@saifsiddiqui/vouch",
+  "version": "0.1.0",
+  "private": false,
   "type": "module",
-  "bin": { "vouch": "dist/main.js" },
-  "scripts": { "build": "tsc -p tsconfig.json" },
+  "bin": {
+    "vouch": "dist/main.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
   "dependencies": {
-    "@vouch/core": "workspace:*",
     "commander": "^14.0.0",
-    "picocolors": "^1.1.1"
+    "picocolors": "^1.1.1",
+    "simple-git": "^3.28.0",
+    "ts-morph": "^28.0.0",
+    "yaml": "^2.8.0",
+    "smol-toml": "^1.4.0",
+    "ignore": "^7.0.0"
+  },
+  "description": "Know what you shipped. Vouch checks whether you can actually defend the code, packages and services in your own repo.",
+  "license": "MIT",
+  "keywords": [
+    "ai",
+    "learning",
+    "code-comprehension",
+    "dependencies",
+    "claude"
+  ],
+  "engines": {
+    "node": ">=24.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "files": [
+    "dist",
+    "vendor",
+    "plugin",
+    "README.md"
+  ],
+  "optionalDependencies": {
+    "@resvg/resvg-js": "^2.6.2"
   }
 }

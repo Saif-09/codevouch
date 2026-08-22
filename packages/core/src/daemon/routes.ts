@@ -445,8 +445,12 @@ export const routes: Route[] = [
       const model = buildMapModel(ctx.db, repo.id, 720, 500);
       const gaps = gapPerZone(ctx.db, repo.id);
       const svg = renderShareSvg(model, repo.name, gaps[0] && gaps[0].gap > 0 ? gaps[0] : null);
-      svgToPngFile(svg, out);
-      return { written: out };
+      try {
+        await svgToPngFile(svg, out);
+        return { written: out };
+      } catch (e: any) {
+        return { written: null, fallback: e.message };
+      }
     },
   },
   {

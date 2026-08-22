@@ -6,22 +6,21 @@ Vouch never blocks you and never runs on its own schedule. You call it, or it ap
 
 ## 1. Install
 
-Vouch is a local Node tool. It needs Node 24 and pnpm, and it uses your existing `claude` CLI login for the small amount of AI work it does.
-
 ```sh
-cd ~/Developer/Workspace/vouch
-pnpm install
-pnpm build
-
-# make `vouch` available everywhere
-cat > ~/.local/bin/vouch <<'SH'
-#!/bin/sh
-exec node ~/Developer/Workspace/vouch/packages/cli/dist/main.js "$@"
-SH
-chmod +x ~/.local/bin/vouch
+npm install -g @saifsiddiqui/vouch
+vouch --version
 ```
 
-Check it: `vouch --version`.
+Needs **Node 24 or newer**. Nothing compiles at install time: Vouch uses Node's built-in SQLite, so there is no C++ toolchain requirement.
+
+For the AI parts (writing question cards and grading answers) Vouch shells out to your own `claude` CLI if you have Claude Code installed. If you do not, set an AI Gateway key instead:
+
+```sh
+export VOUCH_BACKEND=gateway
+export AI_GATEWAY_API_KEY=...
+```
+
+Everything except question-writing and grading works with no AI at all, including `vouch unused`, the map, and cards.
 
 ---
 
