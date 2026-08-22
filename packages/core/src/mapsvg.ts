@@ -188,3 +188,43 @@ function rescaleGroups(model: MapModel, ox: number, oy: number, w: number, h: nu
     })),
   }));
 }
+
+/**
+ * The audit card: the one artifact worth showing someone else. Numbers only,
+ * no package names and no repository contents, so it is safe to post.
+ */
+export function renderAuditSvg(a: {
+  repo: string;
+  scanned: number;
+  vulnerable: number;
+  worstSeverity: string | null;
+  deprecated: number;
+  stale: number;
+  unused: number;
+  unusedInstallBytes: number;
+  totalInstallBytes: number;
+}): string {
+  const W = 1200;
+  const H = 630;
+  const mb = (b: number) => `${(b / 1048576).toFixed(0)} MB`;
+  const alarming = a.vulnerable > 0 || a.deprecated > 0;
+
+  const stat = (x: number, y: number, value: string, label: string, colour: string) => `
+    <text x="${x}" y="${y}" font-family=${JSON.stringify(STAT_FONT)} font-size="74" fill="${colour}">${esc(value)}</text>
+    <text x="${x}" y="${y + 30}" font-family=${JSON.stringify(LABEL_FONT)} font-size="15" fill="${PALETTE.ink}" opacity="0.7">${esc(label)}</text>`;
+
+  return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}">
+<rect width="${W}" height="${H}" fill="${PALETTE.paper}"/>
+<text x="64" y="96" font-family=${JSON.stringify(STAT_FONT)} font-size="38" fill="${PALETTE.ink}">${esc(a.repo)}</text>
+<text x="64" y="128" font-family=${JSON.stringify(LABEL_FONT)} font-size="16" fill="${PALETTE.ink}" opacity="0.65">${a.scanned} direct dependencies, ${mb(a.totalInstallBytes)} installed</text>
+${stat(64, 250, String(a.vulnerable), a.worstSeverity ? `with known vulnerabilities (worst: ${a.worstSeverity.toLowerCase()})` : 'with known vulnerabilities', a.vulnerable > 0 ? PALETTE.oxblood : PALETTE.verdigris)}
+${stat(64, 380, String(a.deprecated), 'deprecated by their own authors', a.deprecated > 0 ? PALETTE.oxblood : PALETTE.verdigris)}
+${stat(640, 250, String(a.unused), `imported by nothing (${mb(a.unusedInstallBytes)} of dead weight)`, a.unused > 0 ? PALETTE.brass : PALETTE.verdigris)}
+${stat(640, 380, String(a.stale), 'with no release in over two years', a.stale > 0 ? PALETTE.brass : PALETTE.verdigris)}
+<line x1="64" y1="470" x2="${W - 64}" y2="470" stroke="${PALETTE.ink}" stroke-opacity="0.15" stroke-width="1"/>
+<text x="64" y="510" font-family=${JSON.stringify(LABEL_FONT)} font-size="15" fill="${PALETTE.ink}" opacity="0.75">${alarming ? 'Found in about twenty seconds, with one command.' : 'Clean. Checked, not assumed.'}</text>
+<text x="64" y="534" font-family=${JSON.stringify(LABEL_FONT)} font-size="13" fill="${PALETTE.ink}" opacity="0.5">Sources: OSV advisory database, deps.dev, the npm registry.</text>
+<text x="64" y="${H - 44}" font-family=${JSON.stringify(LABEL_FONT)} font-size="14" fill="${PALETTE.ink}" opacity="0.55">npm install -g codevouch</text>
+<text x="${W - 64}" y="${H - 44}" text-anchor="end" font-family=${JSON.stringify(LABEL_FONT)} font-size="14" fill="${PALETTE.ink}" opacity="0.4">vouch audit</text>
+</svg>`;
+}

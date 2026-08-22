@@ -14,11 +14,12 @@ import { askRep, answerRep, answerDefend, answerCard, recordConfidenceAfter, ove
 import { dueCards, buildCard } from '../cards.js';
 import { calibration } from '../hunch.js';
 import { findUnused } from '../unused.js';
+import { refreshAllImpact, buildAudit } from '../audit.js';
 import { generateBriefs } from '../brief.js';
 import { buildDigest } from '../digest.js';
 import { vouchedPct, gapPerZone, extractionCost, vouchedOverTime, gapOverTime, refresh } from '../scoring.js';
 import { buildMapModel } from '../map.js';
-import { renderMapSvg, renderShareSvg } from '../mapsvg.js';
+import { renderMapSvg, renderShareSvg, renderAuditSvg } from '../mapsvg.js';
 import { svgToPngFile } from '../mappng.js';
 import { chooseBackend, metered, type ExtractionBackend } from '../extraction.js';
 import { ulid, nowIso, mapLimit } from '../util.js';
@@ -473,6 +474,35 @@ export const routes: Route[] = [
         }
       }
       return { dependencies: deps.length, callSites: found };
+    },
+  },
+  {
+    method: 'POST', pattern: /^\/audit$/,
+    handler: async (ctx, _p, body) => {
+      const repo = requireRepo(ctx, body?.root);
+      if (body?.refresh !== false) await refreshAllImpact(ctx.db, repo);
+      return buildAudit(ctx.db, repo);
+    },
+  },
+  {
+    method: 'GET', pattern: /^\/audit\/png$/,
+    handler: async (ctx, _p, _b, q) => {
+      const repo = requireRepo(ctx, q.get('root') ?? undefined);
+      const out = q.get('out');
+      if (!out) throw new HttpError(400, 'out path required');
+      const a = buildAudit(ctx.db, repo);
+      const svg = renderAuditSvg({
+        repo: a.repo, scanned: a.scanned, vulnerable: a.vulnerable.length,
+        worstSeverity: a.worstSeverity, deprecated: a.deprecated.length,
+        stale: a.stale.length, unused: a.unused.length,
+        unusedInstallBytes: a.unusedInstallBytes, totalInstallBytes: a.totalInstallBytes,
+      });
+      try {
+        await svgToPngFile(svg, out);
+        return { written: out };
+      } catch (e: any) {
+        return { written: null, fallback: e.message };
+      }
     },
   },
   {

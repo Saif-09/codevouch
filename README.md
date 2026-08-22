@@ -24,7 +24,45 @@ Vouch makes the gap visible while it is still cheap to fix.
 
 ## What you actually get
 
-### 1. Packages you are shipping for nothing
+### 1. A twenty-second audit of everything you depend on
+
+```sh
+vouch audit
+```
+
+No setup, no AI, no account. It checks every direct dependency against the OSV advisory database **at the version in your lockfile**, not the latest published one, because a project pinned to a vulnerable release would otherwise be reported clean.
+
+Real output from a production Next.js app:
+
+```
+92 direct dependencies, 518.0 MB installed
+
+5 deprecated by their own authors
+  @nextui-org/react, @storybook/testing-library, critters, ...
+
+4 with no release in over two years
+  8.9 years  slick-carousel
+  6.1 years  platform
+
+16 that nothing imports (101 MB)
+  @prisma/client, react-icons, zod, next-themes, pg, ...
+
+heaviest
+  176.1 MB  next            +50 transitive
+   84.2 MB  react-icons     (and nothing imports it)
+```
+
+On a repo with real problems it reads like this instead:
+
+```
+2 with known vulnerabilities
+  CRITICAL  minimist  Prototype Pollution in minimist
+      HIGH  lodash    Command Injection in lodash
+```
+
+Severity is quoted from the advisory database, never invented here. `vouch audit --png` writes a shareable card with the numbers and no package names or code.
+
+### 2. Packages you are shipping for nothing
 
 Run one command in any repo. No setup, no AI key, no account.
 
@@ -43,7 +81,7 @@ Real output from a production Next.js app:
 
 Every one verified by hand: no false positives. That is 10.7 MB of install weight, supply-chain surface, and dependency updates you were carrying for no reason.
 
-### 2. Questions about your own code that you cannot answer
+### 3. Questions about your own code that you cannot answer
 
 After a work session:
 
@@ -64,7 +102,7 @@ How well do you understand what zod does here? [1..7]  6
 
 Answer it, and you get the real answer plus install size, licence, known vulnerabilities, and for paid services, what it costs at 10k users and what breaks when it goes down.
 
-### 3. A check on features you shipped but cannot describe
+### 4. A check on features you shipped but cannot describe
 
 ```sh
 vouch defend
@@ -83,7 +121,7 @@ where it breaks first
 
 Three real bugs, found by being asked to explain your own code.
 
-### 4. One honest number
+### 5. One honest number
 
 ```
 the gap: you rated 6/7, you demonstrated 4/7
@@ -95,7 +133,7 @@ the gap: you rated 6/7, you demonstrated 4/7
 
 ## How you would actually use it
 
-**Day one (2 minutes).** `vouch unused` in your main repo. Delete what you are not using. That alone pays for the install.
+**Day one (20 seconds).** `vouch audit` in your main repo. You will find out what is vulnerable, what is abandoned, and what you are installing for no reason. That alone pays for the install.
 
 **Day one, part two (90 seconds).** `vouch init`. It shows you areas of your code and you press one key each: keep sharp, or outsourced. Be honest and lean toward outsourced. Nobody needs to stay sharp on CSS scaffolding. Auth and payments are a different story.
 
@@ -122,7 +160,8 @@ the gap: you rated 6/7, you demonstrated 4/7
 
 | Command | What it does |
 |---|---|
-| `vouch unused` | Packages nothing in your source imports |
+| `vouch audit` | Vulnerabilities, deprecated, stale, unused, heaviest, in one pass |
+| `vouch unused` | Just the packages nothing imports |
 | `vouch init` | Set up a repo, choose what to stay sharp at |
 | `vouch digest` | End-of-session review, five items maximum |
 | `vouch defend` | Reconstruct a change you shipped, then see the real brief |

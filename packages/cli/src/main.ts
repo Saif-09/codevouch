@@ -186,11 +186,71 @@ program
   });
 
 program
+  .command('audit')
+  .description('Everything Vouch knows about your dependencies: vulnerabilities, deprecated, stale, unused, heaviest.')
+  .option('--png <path>', 'also write a shareable card')
+  .action(async (opts: { png?: string }) => {
+    process.stdout.write(paint.dim('checking every dependency against the advisory databases... '));
+    const r = await api('POST', '/audit', { root: root() });
+    console.log(paint.dim('done.\n'));
+
+    const mb = (b: number) => `${(b / 1048576).toFixed(1)} MB`;
+    const sev = (s: string) =>
+      s === 'CRITICAL' || s === 'HIGH' ? paint.bad(s) : s === 'MODERATE' ? paint.warn(s) : paint.dim(s);
+
+    console.log(paint.title(`${r.repo}: ${r.scanned} direct dependencies, ${mb(r.totalInstallBytes)} installed`));
+
+    if (r.vulnerable.length > 0) {
+      console.log(`\n${paint.bad(`${r.vulnerable.length} with known vulnerabilities`)}`);
+      for (const f of r.vulnerable.slice(0, 8)) {
+        for (const a of f.advisories.slice(0, 2)) {
+          console.log(`  ${sev(a.severity)}  ${f.name}  ${paint.dim(a.summary.slice(0, 72))}`);
+        }
+      }
+    }
+    if (r.deprecated.length > 0) {
+      console.log(`\n${paint.bad(`${r.deprecated.length} deprecated by their own authors`)}`);
+      console.log(paint.dim(`  ${r.deprecated.map((f: any) => f.name).join(', ')}`));
+    }
+    if (r.stale.length > 0) {
+      console.log(`\n${paint.warn(`${r.stale.length} with no release in over two years`)}`);
+      for (const f of r.stale.slice(0, 6)) {
+        console.log(`  ${paint.dim(`${f.yearsSincePublish.toFixed(1)} years`)}  ${f.name}`);
+      }
+      console.log(paint.dim('  (a fact, not a verdict: plenty of good packages are simply finished)'));
+    }
+    if (r.unused.length > 0) {
+      console.log(`\n${paint.warn(`${r.unused.length} that nothing imports`)} ${paint.dim(`(${mb(r.unusedInstallBytes)})`)}`);
+      console.log(paint.dim(`  ${r.unused.map((f: any) => f.name).join(', ')}`));
+    }
+    if (r.heaviest.length > 0) {
+      console.log(`\n${paint.em('heaviest')}`);
+      for (const f of r.heaviest) {
+        console.log(`  ${mb(f.installSizeBytes).padStart(8)}  ${f.name}${f.transitiveCount ? paint.dim(` +${f.transitiveCount} transitive`) : ''}`);
+      }
+    }
+    const clean = r.vulnerable.length === 0 && r.deprecated.length === 0 && r.unused.length === 0;
+    if (clean) console.log(`\n${paint.good('nothing vulnerable, deprecated or unimported. Genuinely clean.')}`);
+    for (const n of r.notes) console.log(`\n${paint.dim(n)}`);
+    console.log(paint.dim(`\nChecked ${r.versionPinned}/${r.scanned} against the version in your lockfile${r.versionPinned < r.scanned ? ', the rest against the latest published version' : ''}.`));
+    console.log(paint.dim('Sources: OSV advisory database, deps.dev, the npm registry. No AI, nothing sent anywhere.'));
+
+    if (opts.png) {
+      const out = resolve(opts.png);
+      const res = await api('GET', `/audit/png?root=${encodeURIComponent(root())}&out=${encodeURIComponent(out)}`);
+      console.log(`\n${res.written ?? paint.warn(res.fallback)}`);
+    }
+  });
+
+program
   .command('unused')
   .description('Dependencies nothing in your source imports.')
   .action(async () => {
-    process.stdout.write(paint.dim('scanning imports... '));
+    process.stdout.write(paint.dim('scanning imports and sizes... '));
     await api('POST', '/callsites/rescan', { root: root() }).catch(() => null);
+    // without fresh impact data the megabyte total silently under-reports,
+    // because only packages that had a Dossier carry an install size
+    await api('POST', '/audit', { root: root() }).catch(() => null);
     console.log(paint.dim('done.'));
     const r = await api('GET', `/unused?root=${encodeURIComponent(root())}`);
     const mb = (b: number) => `${(b / 1048576).toFixed(1)} MB`;

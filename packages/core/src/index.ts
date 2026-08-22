@@ -23,6 +23,7 @@ export * from './cards.js';
 export * from './promote.js';
 export * from './hunch.js';
 export * from './unused.js';
+export * from './audit.js';
 export * from './reps.js';
 export * from './digest.js';
 export * from './scoring.js';

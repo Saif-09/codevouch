@@ -9,6 +9,13 @@ import { mapLimit } from './util.js';
  * size is a Wave 2 field with no keyless source.
  */
 
+export interface Advisory {
+  id: string;
+  summary: string;
+  /** The advisory database's own rating. Never invented or recomputed here. */
+  severity: 'CRITICAL' | 'HIGH' | 'MODERATE' | 'LOW' | 'UNKNOWN';
+}
+
 export interface ImpactData {
   ecosystem: string;
   name: string;
@@ -20,13 +27,25 @@ export interface ImpactData {
   transitiveCount: number | null;
   dependentCount: number | null;
   scorecardScore: number | null;
-  advisories: string[];              // OSV ids
+  advisories: Advisory[];            // from OSV, with the database's own severity
   deprecated: boolean;
   service: ServiceImpact | null;     // curated table, spec §8
   errors: string[];                  // feeds that failed; shown honestly, never hidden
 }
 
 const DEPS_DEV = 'https://api.deps.dev/v3alpha';
+
+/** Derive a band from the CVSS vector when the database offers no label. */
+function severityFromCvss(full: any): string | null {
+  const vec = (full?.severity ?? []).find((s: any) => String(s.type).startsWith('CVSS'));
+  if (!vec?.score) return null;
+  const m = String(vec.score).match(/\/AV:/) ? null : Number(vec.score);
+  if (m === null || Number.isNaN(m)) return null;
+  if (m >= 9) return 'CRITICAL';
+  if (m >= 7) return 'HIGH';
+  if (m >= 4) return 'MODERATE';
+  return 'LOW';
+}
 
 async function json(url: string): Promise<any> {
   const res = await safeFetch(url);
@@ -100,7 +119,22 @@ export async function fetchImpact(
         const res = await osvBatchPost('/v1/querybatch', {
           queries: [{ package: { name, ecosystem: ecosystem === 'npm' ? 'npm' : 'PyPI' }, version: v }],
         });
-        impact.advisories = (res?.results?.[0]?.vulns ?? []).map((x: any) => x.id);
+        // querybatch returns abbreviated records: ids and modified times only,
+        // with no summary or severity. Those have to be fetched per advisory,
+        // which is cheap because only vulnerable packages reach this path.
+        const ids: string[] = (res?.results?.[0]?.vulns ?? []).map((x: any) => x.id).slice(0, 6);
+        impact.advisories = await mapLimit(ids, 3, async (id) => {
+          try {
+            const full = await json(`https://api.osv.dev/v1/vulns/${encodeURIComponent(id)}`);
+            return {
+              id,
+              summary: full?.summary ?? (full?.details ?? '').split('\n')[0].slice(0, 140),
+              severity: String(full?.database_specific?.severity ?? severityFromCvss(full) ?? 'UNKNOWN').toUpperCase(),
+            } as Advisory;
+          } catch {
+            return { id, summary: '', severity: 'UNKNOWN' } as Advisory;
+          }
+        });
       } catch (e: any) {
         impact.errors.push(`osv: ${e.message}`);
       }

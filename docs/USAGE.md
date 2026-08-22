@@ -4,7 +4,7 @@
 
 You build with AI, it works, you move on. Later you cannot explain your own code: why that package is there, what happens when that call fails, what the thing you shipped actually assumes. Vouch finds those gaps by asking you questions about your own repository and showing you where your confidence ran ahead of what you could actually produce. It never blocks you and never stops you using AI.
 
-Start with `vouch unused`. It takes two minutes, needs no setup and no AI, and usually finds real weight you can delete today.
+Start with `vouch audit`. It takes about twenty seconds, needs no setup and no AI, and tells you which of your dependencies are vulnerable, deprecated, unmaintained or imported by nothing at all. Advisories are checked against the version in your lockfile, not the latest release, because that is the code you are actually running.
 
 Vouch never runs on its own schedule. You call it, or it appears at the end of a work session. If you ignore it for a week, nothing breaks and nothing nags.
 
