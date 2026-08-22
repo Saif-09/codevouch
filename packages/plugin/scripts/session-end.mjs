@@ -7,14 +7,14 @@
  * and this never touches the transcript (hard rule 7). Fails open.
  */
 import { existsSync } from 'node:fs';
-import { readStdin, loadCore, dbFile } from './lib.mjs';
+import { readStdin, loadCoreModules, dbFile } from './lib.mjs';
 
 async function main() {
   const input = await readStdin();
   const cwd = input.cwd ?? process.cwd();
   if (!existsSync(dbFile())) return;
 
-  const core = await loadCore();
+  const core = await loadCoreModules(['db', 'ingest']);
   const db = core.openDb(dbFile());
   try {
     const repo = db

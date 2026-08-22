@@ -11,7 +11,7 @@
  * It also runs in front of every prompt, so it stays read-mostly and quick.
  */
 import { existsSync } from 'node:fs';
-import { readStdin, loadCore, dbFile } from './lib.mjs';
+import { readStdin, loadCoreModules, dbFile } from './lib.mjs';
 
 async function main() {
   const input = await readStdin();
@@ -24,7 +24,8 @@ async function main() {
 
   if (!existsSync(dbFile())) return; // vouch not set up here
 
-  const core = await loadCore();
+  // only the modules this hook needs: see loadCoreModules
+  const core = await loadCoreModules(['db', 'promptlog', 'hunch']);
   const db = core.openDb(dbFile());
   try {
     // Record every prompt for `vouch prompts`. Redacted on the way in, and
