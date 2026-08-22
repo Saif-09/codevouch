@@ -22,16 +22,22 @@ async function main() {
   // guessing, so a future rename degrades to silence instead of misfiring.
   const userInput = input.prompt ?? input.user_input ?? '';
 
-  if (process.env.VOUCH_HUNCH === 'off') return;
   if (!existsSync(dbFile())) return; // vouch not set up here
 
   const core = await loadCore();
   const db = core.openDb(dbFile());
   try {
+    // Record every prompt for `vouch prompts`. Redacted on the way in, and
+    // wrapped so a logging failure can never affect the session.
+    try {
+      core.recordPrompt(db, input.session_id ?? 'unknown', cwd, userInput);
+    } catch { /* logging is never worth breaking a prompt over */ }
+
     const check = core.checkEligibility(db, cwd, promptId, userInput, {
       cooldownMinutes: Number(process.env.VOUCH_HUNCH_COOLDOWN ?? core.DEFAULT_COOLDOWN_MINUTES),
       sampleOneIn: Number(process.env.VOUCH_HUNCH_SAMPLE ?? core.DEFAULT_SAMPLE_ONE_IN),
     });
+    if (process.env.VOUCH_HUNCH === 'off') return;
     if (!check.eligible) return;
 
     core.openHunch(db, check.repoId, promptId);

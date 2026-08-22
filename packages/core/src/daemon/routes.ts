@@ -15,6 +15,8 @@ import { dueCards, buildCard } from '../cards.js';
 import { calibration } from '../hunch.js';
 import { findUnused } from '../unused.js';
 import { refreshAllImpact, buildAudit } from '../audit.js';
+import { recentSessions, latestSession, sessionPrompts } from '../promptlog.js';
+import { reviewPrompts } from '../promptreview.js';
 import { generateBriefs } from '../brief.js';
 import { buildDigest } from '../digest.js';
 import { vouchedPct, gapPerZone, extractionCost, vouchedOverTime, gapOverTime, refresh } from '../scoring.js';
@@ -503,6 +505,19 @@ export const routes: Route[] = [
       } catch (e: any) {
         return { written: null, fallback: e.message };
       }
+    },
+  },
+  {
+    method: 'GET', pattern: /^\/prompts\/sessions$/,
+    handler: async (ctx) => recentSessions(ctx.db),
+  },
+  {
+    method: 'POST', pattern: /^\/prompts\/review$/,
+    handler: async (ctx, _p, body) => {
+      const session = body?.session ?? latestSession(ctx.db, body?.root);
+      if (!session) throw new HttpError(404, 'no prompts recorded yet');
+      if (sessionPrompts(ctx.db, session).length === 0) throw new HttpError(404, 'no prompts for that session');
+      return reviewPrompts(ctx.db, ctx.backend, session);
     },
   },
   {

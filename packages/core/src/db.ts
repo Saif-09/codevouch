@@ -153,6 +153,17 @@ CREATE TABLE IF NOT EXISTS call_sites (
   PRIMARY KEY (node_id, path, line)
 );
 
+CREATE TABLE IF NOT EXISTS prompts (
+  id TEXT PRIMARY KEY,
+  repo_id TEXT REFERENCES repos(id),
+  claude_session TEXT NOT NULL,
+  seq INTEGER NOT NULL,
+  text TEXT NOT NULL,           -- redacted before it is ever written
+  chars INTEGER NOT NULL,
+  at TEXT NOT NULL,
+  UNIQUE (claude_session, seq)
+);
+
 CREATE TABLE IF NOT EXISTS extraction_calls (
   id TEXT PRIMARY KEY,
   task TEXT NOT NULL,
@@ -164,6 +175,7 @@ CREATE TABLE IF NOT EXISTS extraction_calls (
 CREATE INDEX IF NOT EXISTS idx_nodes_repo ON nodes(repo_id, alive, in_zone);
 CREATE INDEX IF NOT EXISTS idx_states_node ON node_states(node_id, at);
 CREATE INDEX IF NOT EXISTS idx_reps_node ON reps(node_id, asked_at);
+CREATE INDEX IF NOT EXISTS idx_prompts_session ON prompts(claude_session, seq);
 `;
 
 /**

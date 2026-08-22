@@ -186,6 +186,76 @@ program
   });
 
 program
+  .command('prompts')
+  .description('Review the prompts you sent in a Claude Code session, and how to send fewer, better ones.')
+  .option('--session <id>', 'a specific session (default: the most recent in this repo)')
+  .option('--list', 'list recorded sessions')
+  .action(async (opts: { session?: string; list?: boolean }) => {
+    if (opts.list) {
+      const rows = await api('GET', '/prompts/sessions');
+      if (rows.length === 0) {
+        console.log(paint.dim('no sessions recorded yet. Install the plugin with: vouch plugin'));
+        return;
+      }
+      for (const s of rows) {
+        console.log(`  ${s.claudeSession.slice(0, 8)}  ${String(s.prompts).padStart(3)} prompts  ${paint.dim(`${s.repo ?? '?'}  ${s.startedAt.slice(0, 16).replace('T', ' ')}`)}`);
+      }
+      return;
+    }
+
+    process.stdout.write(paint.dim('reading back your prompts... '));
+    let r: any;
+    try {
+      r = await api('POST', '/prompts/review', { root: root(), session: opts.session });
+    } catch (e: any) {
+      console.log();
+      if (/no prompts/.test(e.message)) {
+        console.log(paint.warn('No prompts recorded yet.'));
+        console.log(paint.dim('Vouch records prompts through the Claude Code plugin. Install it with: vouch plugin'));
+        return;
+      }
+      throw e;
+    }
+    console.log(paint.dim('done.\n'));
+
+    const label: Record<string, string> = {
+      fine: 'fine', vague: 'vague', correction: 'correction',
+      overloaded: 'two asks in one', 'missing-context': 'missing context',
+      'missing-criteria': 'no success criteria',
+    };
+
+    console.log(paint.title(`${r.total} prompts in that session`));
+    const issues = r.prompts.filter((p: any) => p.verdict !== 'fine');
+    if (issues.length === 0) {
+      console.log(paint.good('\nNothing to fix. These were well-scoped prompts.'));
+    }
+    for (const p of issues) {
+      const tag = p.avoidable ? paint.bad(label[p.verdict] ?? p.verdict) : paint.warn(label[p.verdict] ?? p.verdict);
+      console.log(`\n${paint.dim(`[${p.seq}]`)} ${tag}${p.avoidable ? paint.dim('  (this prompt should not have been needed)') : ''}`);
+      console.log(paint.dim(`  you sent: ${p.text.replace(/\s+/g, ' ').slice(0, 100)}${p.text.length > 100 ? '...' : ''}`));
+      if (p.issue) console.log(`  ${p.issue}`);
+      if (p.rewrite) console.log(`  ${paint.em('instead')}: ${p.rewrite}`);
+    }
+
+    if (r.patterns.length > 0) {
+      console.log(`\n${paint.title('habits across the session')}`);
+      for (const pat of r.patterns) console.log(`  ${pat}`);
+    }
+    if (r.biggestWin) {
+      console.log(`\n${paint.title('the one thing to change')}`);
+      console.log(`  ${r.biggestWin}`);
+    }
+
+    if (r.avoidable > 0) {
+      console.log(`\n${paint.bad(`${r.avoidable} of ${r.total} prompts were avoidable`)}`);
+      console.log(`  roughly ${paint.bad(r.estimatedTokensWasted.toLocaleString())} tokens, about ${Math.round(r.estimatedPercent)}% of the session`);
+      console.log(paint.dim(`  ${r.method}`));
+    } else {
+      console.log(`\n${paint.good('No avoidable round trips. Nothing to reclaim.')}`);
+    }
+  });
+
+program
   .command('audit')
   .description('Everything Vouch knows about your dependencies: vulnerabilities, deprecated, stale, unused, heaviest.')
   .option('--png <path>', 'also write a shareable card')

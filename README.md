@@ -81,7 +81,37 @@ Real output from a production Next.js app:
 
 Every one verified by hand: no false positives. That is 10.7 MB of install weight, supply-chain surface, and dependency updates you were carrying for no reason.
 
-### 3. Questions about your own code that you cannot answer
+### 3. How to have written better prompts
+
+```sh
+vouch prompts
+```
+
+Reads back the prompts you actually sent in a Claude Code session and tells you which ones should not have been needed. Real output:
+
+```
+6 prompts in that session
+
+[2] correction  (this prompt should not have been needed)
+  you sent: no i meant it should save to localStorage not the server
+  The first prompt didn't specify the storage mechanism.
+  instead: Incorporate into prompt [1]: 'save items to localStorage not the server'
+
+[6] two asks in one
+  you sent: now add a remove button and also refactor the store and update the docs
+  Bundles three unrelated tasks: UI feature, architecture refactor, documentation.
+
+3 of 6 prompts were avoidable
+  roughly 8,515 tokens, about 47% of the session
+```
+
+Every rewrite is a prompt you could paste, using your own subject matter, not "be more specific".
+
+The token figure is an **estimate and says so**: hooks do not report usage, so Vouch counts prompt length at four characters per token, assumes a fixed assistant turn, and charges each avoidable prompt the whole conversation up to that point, because every turn re-sends it. The count of avoidable round trips is the real measurement.
+
+Needs the Claude Code plugin (`vouch plugin`), which records prompts through the documented hook. Vouch never reads your transcript files.
+
+### 4. Questions about your own code that you cannot answer
 
 After a work session:
 
@@ -102,7 +132,7 @@ How well do you understand what zod does here? [1..7]  6
 
 Answer it, and you get the real answer plus install size, licence, known vulnerabilities, and for paid services, what it costs at 10k users and what breaks when it goes down.
 
-### 4. A check on features you shipped but cannot describe
+### 5. A check on features you shipped but cannot describe
 
 ```sh
 vouch defend
@@ -121,7 +151,7 @@ where it breaks first
 
 Three real bugs, found by being asked to explain your own code.
 
-### 5. One honest number
+### 6. One honest number
 
 ```
 the gap: you rated 6/7, you demonstrated 4/7
@@ -161,6 +191,7 @@ the gap: you rated 6/7, you demonstrated 4/7
 | Command | What it does |
 |---|---|
 | `vouch audit` | Vulnerabilities, deprecated, stale, unused, heaviest, in one pass |
+| `vouch prompts` | Review your prompts from a session, and how to send fewer |
 | `vouch unused` | Just the packages nothing imports |
 | `vouch init` | Set up a repo, choose what to stay sharp at |
 | `vouch digest` | End-of-session review, five items maximum |
