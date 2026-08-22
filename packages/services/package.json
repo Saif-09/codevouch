@@ -1,0 +1,10 @@
+{
+  "name": "@vouch/services",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "description": "Curated service-impact table: pricing at scale, failure modes, data egress. Shared surface between Vouch and launch-readiness.",
+  "scripts": { "build": "tsc -p tsconfig.json" }
+}

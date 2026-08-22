@@ -1,0 +1,13 @@
+{
+  "name": "@vouch/cli",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "bin": { "vouch": "dist/main.js" },
+  "scripts": { "build": "tsc -p tsconfig.json" },
+  "dependencies": {
+    "@vouch/core": "workspace:*",
+    "commander": "^14.0.0",
+    "picocolors": "^1.1.1"
+  }
+}

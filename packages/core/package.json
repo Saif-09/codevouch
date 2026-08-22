@@ -1,0 +1,29 @@
+{
+  "name": "@vouch/core",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": "./dist/index.js",
+    "./daemon": "./dist/daemon/main.js",
+    "./daemon-version": "./dist/daemon/version.js"
+  },
+  "scripts": {
+    "build": "tsc -p tsconfig.json"
+  },
+  "dependencies": {
+    "@vouch/services": "workspace:*",
+    "better-sqlite3": "^12.4.1",
+    "simple-git": "^3.28.0",
+    "ts-morph": "^28.0.0",
+    "yaml": "^2.8.0",
+    "smol-toml": "^1.4.0",
+    "ignore": "^7.0.0",
+    "@resvg/resvg-js": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.12"
+  }
+}

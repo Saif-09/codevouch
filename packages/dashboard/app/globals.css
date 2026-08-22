@@ -1,0 +1,39 @@
+/* Editorial, single deliberate look: paper ground, ink text (tech spec §10). */
+:root {
+  --paper: #F4F0E8;
+  --ink: #1B1A17;
+  --oxblood: #7A2E28;
+  --brass: #B08A4A;
+  --verdigris: #4E7B77;
+  --chalk: #D7D0C4;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--paper); color: var(--ink); }
+body {
+  font-family: 'Helvetica Neue', Helvetica, Arial, sans-serif;
+  line-height: 1.5;
+  padding: 32px clamp(16px, 4vw, 56px);
+  max-width: 1200px;
+  margin: 0 auto;
+}
+h1, .stat { font-family: Georgia, 'Iowan Old Style', 'Times New Roman', serif; font-weight: 400; }
+h1 { font-size: clamp(22px, 3vw, 30px); margin-bottom: 4px; }
+.muted { opacity: 0.62; font-size: 14px; }
+.stats { display: flex; gap: clamp(20px, 5vw, 64px); margin: 28px 0 20px; flex-wrap: wrap; }
+.stat b { display: block; font-size: clamp(40px, 6vw, 64px); font-weight: 400; }
+.stat.gap b { color: var(--oxblood); }
+.stat.good b { color: var(--verdigris); }
+nav { margin: 18px 0 8px; display: flex; gap: 18px; }
+nav a { color: var(--ink); text-decoration: none; border-bottom: 2px solid transparent; padding-bottom: 2px; font-size: 14px; }
+nav a:hover, nav a[aria-current='page'] { border-bottom-color: var(--ink); }
+nav a:focus-visible, a:focus-visible, button:focus-visible { outline: 2.5px solid var(--ink); outline-offset: 2px; }
+.mapwrap { overflow-x: auto; border: 1px solid rgba(27, 26, 23, 0.14); border-radius: 4px; }
+.mapwrap svg { display: block; width: 100%; height: auto; }
+table { border-collapse: collapse; width: 100%; margin-top: 12px; font-size: 14px; }
+th { text-align: left; font-weight: 600; padding: 8px 12px 8px 0; border-bottom: 2px solid var(--ink); }
+td { padding: 8px 12px 8px 0; border-bottom: 1px solid rgba(27, 26, 23, 0.14); }
+.gapnum { font-variant-numeric: tabular-nums; color: var(--oxblood); }
+.gapnum.neg { color: var(--verdigris); }
+@media (prefers-reduced-motion: no-preference) {
+  nav a { transition: border-color 120ms ease; }
+}

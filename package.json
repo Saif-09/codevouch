@@ -1,0 +1,14 @@
+{
+  "name": "vouch-workspace",
+  "private": true,
+  "scripts": {
+    "build": "pnpm -r --filter '!@vouch/dashboard' build",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.0",
+    "vitest": "^3.0.0",
+    "tsx": "^4.19.0",
+    "@types/node": "^24.0.0"
+  }
+}

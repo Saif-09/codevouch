@@ -1,0 +1,18 @@
+{
+  "name": "@vouch/dashboard",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "dev": "next dev -p 4477",
+    "build": "next build",
+    "start": "next start -p 4477"
+  },
+  "dependencies": {
+    "next": "^16.1.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0"
+  }
+}
