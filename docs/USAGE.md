@@ -70,7 +70,7 @@ The first digest pauses for a minute or two while it writes question cards. It o
 
 ### The reps you will see
 
-**Dossier** (one per dependency). Shows a package and the real places it appears in your code, then asks one question that needs actual understanding. The reveal includes install size, transitive dependency count, licence, known advisories, and for services, what it costs at 10k users and what happens when it goes down.
+**Dossier** (one per dependency). Shows a package and the real places it appears in your code, then asks one question that needs actual understanding. The reveal includes install size, transitive dependency count, licence, known advisories, and for services, what it costs at 10k users and what happens when it goes down. Anything short of a pass also shows `the answer`: the reveal is there to teach you the thing you did not have, not to mark you down for missing it.
 
 **Defend** (one per feature you shipped). Shows only the filenames and asks you to reconstruct, from memory, what the change does and what it assumes. Then one multiple-choice question about the real data flow. Then the withheld brief: the approach, the load-bearing assumptions, the three places it breaks first, and the designs that were rejected.
 
@@ -169,7 +169,21 @@ A realistic first month on one repo is a few dollars.
 
 ---
 
-## 9. When something looks wrong
+## 9. The terminal
+
+Anything that takes longer than a blink shows a spinner with the elapsed time, and says what it is waiting on: writing question cards is one model call per item, `vouch audit` is waiting on the advisory feeds. Waits that run long swap in a line explaining why rather than spinning faster.
+
+Piped or redirected output gets none of that: no animation, no colour, no escape codes, one plain line per step, so `vouch audit > report.txt` and CI logs stay readable.
+
+| Variable | Effect |
+|---|---|
+| `NO_COLOR=1` | No colour anywhere (honoured by the colour library directly). |
+| `VOUCH_ASCII=1` | Plain `+ x * -> #` instead of `✓ ✗ · → █`, for consoles or diffs that cannot take the unicode. |
+| `VOUCH_NO_SPINNER=1` | Keep colour, drop the animation. |
+
+---
+
+## 10. When something looks wrong
 
 | Symptom | Cause |
 |---|---|
@@ -178,3 +192,4 @@ A realistic first month on one repo is a few dollars.
 | A package you use is listed by `vouch unused` | Vouch finds imports in TS, JS and Python source. Anything used only from a config file, a CLI script or a bundler plugin has no import site. That list is a set of questions, not instructions. |
 | The digest keeps offering the same kind of thing | It works through the highest-weight items first. Critical code comes first by design. |
 | A grade seems unfair | `partial` and `ungraded` are normal. A shaky grade never promotes anything, and the reveal is still the point. |
+| You genuinely do not know | Say so. "I don't know" is a valid answer: it spends no model call, it prints the answer straight away, and the item comes back later as a card. It still records as a miss, because rating yourself a 5 and then drawing a blank is exactly the gap Vouch exists to show you. |

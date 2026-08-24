@@ -25,6 +25,48 @@ export function fallbackProbe(label: string): string {
   return `If ${label} vanished from this project tomorrow, what would you have to do?`;
 }
 
+/**
+ * "I don't know" is an answer, and the honest one. It is recognized locally so
+ * that it costs no grader call and never comes back as a complaint about what
+ * the developer failed to type: the reveal teaches the answer instead. The
+ * delta still lands (rated 5, demonstrated 1), because that delta is the
+ * product; being told you were wrong without being told what is true is not.
+ *
+ * Only a PURE disclaimer counts. "I don't know where it is, but I think it
+ * handles payments" carries a claim, so it is graded on that claim.
+ */
+const DISCLAIMERS: RegExp[] = [
+  /\bi\s*(?:really\s+|honestly\s+|genuinely\s+)?(?:do\s*not|don'?t|dont)\s*(?:know|remember|recall)\b/g,
+  /\bi\s*(?:can'?t|cannot|cant|could\s*not|couldn'?t)\s*(?:remember|recall|say|tell)\b/g,
+  /\bi\s*(?:forgot|forget)\b/g,
+  /\b(?:no|zero|not\s*a)\s*(?:idea|clue|memory|recollection)\b/g,
+  /\b(?:not|never)\s*(?:really\s+|entirely\s+|totally\s+)?sure\b/g,
+  /\b(?:unsure|idk|iunno|dunno|nfi)\b/g,
+];
+
+/** Filler that carries no claim, so it cannot rescue a bare disclaimer. */
+const FILLER =
+  /\b(?:a|an|the|and|but|or|so|to|of|at|in|on|for|about|this|that|it|its|i|we|really|honestly|exactly|sorry|tbh|hmm+|um+|uh+|much|all|any|anything|else|right|now|yet|still|just|even|maybe|probably|actually|here|there)\b/g;
+
+export function isNonAnswer(text: string): boolean {
+  const raw = text.trim().toLowerCase();
+  if (!raw) return true;
+  if (!/[a-z0-9]/.test(raw)) return true; // "?", "-", "..."
+  if (/^(?:n\/?a|none|nope|nah|no)[\s.!?]*$/.test(raw)) return true;
+
+  let rest = raw;
+  let disclaimed = false;
+  for (const p of DISCLAIMERS) {
+    const before = rest;
+    rest = rest.replace(p, ' ');
+    if (rest !== before) disclaimed = true;
+  }
+  if (!disclaimed) return false;
+  // A disclaimer plus real content is still an attempt; a disclaimer plus
+  // filler is not. Four characters is the line: shorter than any claim.
+  return rest.replace(FILLER, ' ').replace(/[^a-z0-9]+/g, '').length <= 4;
+}
+
 export interface RepQuestion {
   repId: string;
   nodeId: string;
@@ -83,6 +125,14 @@ export interface RepReveal {
   demonstrated: number;
   delta: number;
   body: Omit<DossierBody, 'probe_expected'> | null;
+  /**
+   * The answer to the probe, released ONLY here, after an attempt is on
+   * record. Rule 3 is withhold before reveal, not withhold forever: a rep
+   * you got wrong and were never told the answer to teaches nothing.
+   */
+  expectedAnswer: string | null;
+  /** The developer said outright that they did not know. Not a scolding case. */
+  saidUnsure: boolean;
   impact: any;
   stateNow: string;
 }
@@ -115,7 +165,17 @@ export async function answerRep(
   // grade — degrades to 'ungraded', which never promotes (hard rule 9)
   let verdict: Verdict = 'ungraded';
   let gap: string | null = null;
-  if (body?.probe_expected && answer.trim()) {
+  // A blank submission is not the same act as saying "I don't know": it stays
+  // ungraded, the way it always has, so nothing is scored on a client that
+  // posts an empty string.
+  const saidUnsure = answer.trim() !== '' && isNonAnswer(answer);
+  if (body?.probe_expected && saidUnsure) {
+    // No grader call: there is nothing to grade, and nothing to grade is a
+    // fail on the evidence. The gap is kept non-empty on purpose so the card
+    // queue (§7.4) brings this one back.
+    verdict = 'fail';
+    gap = 'You said you did not know. The answer is below, and this one comes back as a card.';
+  } else if (body?.probe_expected && answer.trim()) {
     try {
       const { value } = await backend.run<{ verdict: 'pass' | 'partial' | 'fail'; gap: string; grader_confidence: 'high' | 'low' }>({
         task: 'grade',
@@ -151,6 +211,8 @@ export async function answerRep(
     demonstrated,
     delta: confidenceBefore - demonstrated,
     body: publicBody,
+    expectedAnswer: body?.probe_expected ?? null,
+    saidUnsure,
     impact: dossier ? JSON.parse(dossier.impact_json) : null,
     stateNow: state,
   };
@@ -241,6 +303,8 @@ function askDefend(db: Db, nodeId: string): RepQuestion | null {
 export interface DefendReveal {
   verdict: Verdict;
   gap: string | null;
+  /** The developer said outright that they did not remember. Not a scolding case. */
+  saidUnsure: boolean;
   confidenceBefore: number;
   demonstrated: number;
   delta: number;
@@ -284,7 +348,12 @@ export async function answerDefend(
 
   let verdict: Verdict = 'ungraded';
   let gap: string | null = null;
-  if (reconstruction.trim()) {
+  const saidUnsure = reconstruction.trim() !== '' && isNonAnswer(reconstruction);
+  if (saidUnsure) {
+    // Nothing to grade. The brief below is the answer, in full.
+    verdict = 'fail';
+    gap = 'You said you did not remember this one. The brief below is what it does.';
+  } else if (reconstruction.trim()) {
     try {
       const { value } = await backend.run<{ verdict: 'pass' | 'partial' | 'fail'; gap: string; grader_confidence: 'high' | 'low' }>({
         task: 'grade',
@@ -332,6 +401,7 @@ export async function answerDefend(
   return {
     verdict,
     gap,
+    saidUnsure,
     confidenceBefore,
     demonstrated,
     delta: confidenceBefore - demonstrated,

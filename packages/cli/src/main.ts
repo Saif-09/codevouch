@@ -4,7 +4,8 @@ import { Command } from 'commander';
 import { basename, resolve } from 'node:path';
 import { existsSync, rmSync, readFileSync } from 'node:fs';
 import { api } from './client.js';
-import { keypress, confidence, textInput, paint, hr } from './ui.js';
+import { keypress, paint, rule, bar, gauge, sparkline, pad, glyph } from './ui.js';
+import { spinner, withSpinner } from './spinner.js';
 import { runRep, runCard } from './rep-runner.js';
 import { installPostCommitHook, removePostCommitHook } from './hook.js';
 import { vouchHome, daemonInfoPath, dbPath } from '@vouch/core';
@@ -20,10 +21,6 @@ function pkgVersion(): string {
 
 const program = new Command();
 
-function bar(value: number, max: number, width = 24): string {
-  const filled = Math.round((Math.max(0, Math.min(value, max)) / max) * width);
-  return `${'#'.repeat(filled)}${'.'.repeat(width - filled)}`;
-}
 const root = () => resolve(process.cwd());
 
 /**
@@ -49,37 +46,52 @@ program.action(async () => {
 });
 
 async function printStatus(): Promise<void> {
+  // The first call of a session spawns the daemon, which is not instant.
+  const sp = spinner('reading the map', { transient: true });
   let s: any;
   try {
     s = await api('GET', `/status?root=${encodeURIComponent(root())}`);
+    sp.stop();
   } catch (e: any) {
+    sp.stop();
     console.log(paint.dim(e.message.includes('not registered') ? 'This repo is not initialised. Run: vouch init' : e.message));
     return;
   }
-  hr();
-  console.log(`${paint.title(s.repo)}   vouched ${s.vouchedPct === null ? 'n/a' : `${Math.floor(s.vouchedPct)}%`}`);
+
+  console.log();
+  rule(s.repo);
+  console.log(
+    `  ${paint.dim(pad('vouched', 12))}${s.vouchedPct === null ? paint.dim('n/a  nothing in a keep-sharp zone yet') : gauge(s.vouchedPct)}`,
+  );
+  if (s.calibration !== null && s.calibration !== undefined) {
+    console.log(`  ${paint.dim(pad('calibration', 12))}${bar(s.calibration, 100, 22)}  ${String(Math.round(s.calibration)).padStart(3)}%`);
+  }
+
   if (s.gapPerZone.length > 0) {
-    console.log(paint.dim('the gap (confidence minus demonstrated, per zone):'));
+    console.log(`\n  ${paint.em('the gap')}  ${paint.dim(`${glyph.dot} what you rated minus what you showed, per zone`)}`);
+    const w = Math.max(...s.gapPerZone.map((z: any) => z.zoneName.length));
     for (const z of s.gapPerZone) {
       const sign = z.gap > 0 ? '+' : '';
       const painted = z.gap > 1 ? paint.bad : z.gap < -0.5 ? paint.good : paint.warn;
-      console.log(`  ${painted(`${sign}${z.gap.toFixed(1)}`)}  ${z.zoneName} ${paint.dim(`(${z.reps} reps)`)}`);
+      console.log(
+        `    ${painted(pad(`${sign}${z.gap.toFixed(1)}`, 6))}${pad(z.zoneName, w + 2)}${paint.dim(`${z.reps} rep${z.reps === 1 ? '' : 's'}`)}`,
+      );
     }
   }
-  if (s.calibration !== null && s.calibration !== undefined) {
-    console.log(paint.dim(`calibration: ${Math.round(s.calibration)}% of your predictions matched`));
-  }
+
+  console.log();
   if (s.decayedNow > 0) {
-    console.log(paint.warn(`${s.decayedNow} thing${s.decayedNow === 1 ? '' : 's'} faded since you last looked.`));
+    console.log(`  ${paint.warn(glyph.flag)} ${paint.warn(`${s.decayedNow} thing${s.decayedNow === 1 ? '' : 's'} faded since you last looked`)}`);
   }
   const cost = s.extraction;
-  console.log(paint.dim(`extraction: ${cost.calls} calls, $${cost.totalUsd.toFixed(2)}${cost.failures ? `, ${cost.failures} failed` : ''}`));
+  console.log(paint.dim(`  ${pad('extraction', 12)}${cost.calls} calls, $${cost.totalUsd.toFixed(2)}${cost.failures ? `, ${cost.failures} failed` : ''}`));
+
   if (s.dueCards > 0) {
-    console.log(`\n${paint.em('next')}: vouch cards ${paint.dim(`(${s.dueCards} due, free, about a minute)`)}`);
+    console.log(`\n  ${paint.accent(glyph.arrow)} ${paint.em('vouch cards')}   ${paint.dim(`${s.dueCards} due, free, about a minute`)}`);
   } else if (s.pendingDigestItems > 0) {
-    console.log(`\n${paint.em('next')}: vouch digest ${paint.dim(`(${s.pendingDigestItems} items, under 3 minutes)`)}`);
+    console.log(`\n  ${paint.accent(glyph.arrow)} ${paint.em('vouch digest')}  ${paint.dim(`${s.pendingDigestItems} items, under 3 minutes`)}`);
   } else {
-    console.log(`\n${paint.dim('nothing pending. build something.')}`);
+    console.log(`\n  ${paint.dim('nothing pending. build something.')}`);
   }
 }
 
@@ -93,7 +105,8 @@ program
       console.error('not a git repository');
       process.exit(1);
     }
-    const repo = await api('POST', '/repos', { root: root(), name: basename(root()) });
+    const repo = await withSpinner('registering this repo', () =>
+      api('POST', '/repos', { root: root(), name: basename(root()) }), { transient: true });
 
     const existing = await api('GET', `/zones?root=${encodeURIComponent(root())}`);
     if (existing.length === 0) {
@@ -101,7 +114,8 @@ program
       console.log(paint.dim('What do you want to stay good at? Vouch only ever quizzes inside these.'));
       console.log(paint.dim('k = keep sharp   o = outsourced (no reps, ever)   s = skip\n'));
 
-      const candidates = await api('POST', '/zones/propose', { root: root() });
+      const candidates = await withSpinner('reading the shape of your repo', () =>
+        api('POST', '/zones/propose', { root: root() }), { transient: true });
       for (const c of candidates) {
         const marker = c.critical ? paint.bad(' critical') : '';
         const def = c.defaultStance === 'keep_sharp' ? 'k' : 'o';
@@ -123,10 +137,16 @@ program
     }
 
     installPostCommitHook(root());
-    process.stdout.write(paint.dim('first ingest... '));
-    const bf = await api('POST', '/ingest/backfill', { root: root() });
-    console.log(paint.dim(`${bf.deps} dependencies, ${bf.artifacts} artifacts, ${((Date.now() - t0) / 1000).toFixed(1)}s`));
-    console.log(`\n${paint.good('vouch is watching this repo.')} Next: ${paint.em('vouch digest')} after your next work session, or ${paint.em('vouch dossier')} now.`);
+    const bf = await withSpinner('first ingest: walking your git history', () =>
+      api('POST', '/ingest/backfill', { root: root() }), {
+      done: (r: any) => `first ingest: ${r.deps} dependencies, ${r.artifacts} artifacts`,
+      patience: [
+        { afterMs: 6_000, text: 'first ingest: still walking history (this happens once)' },
+        { afterMs: 20_000, text: 'first ingest: large repo, still going (this happens once)' },
+      ],
+    });
+    console.log(paint.dim(`  ${((Date.now() - t0) / 1000).toFixed(1)}s total, and nothing left the machine`));
+    console.log(`\n${paint.good(`${glyph.tick} vouch is watching this repo.`)} Next: ${paint.em('vouch digest')} after your next work session, or ${paint.em('vouch dossier')} now.`);
   });
 
 program
@@ -139,22 +159,32 @@ program
   .description('The end-of-session review: five items, under three minutes.')
   .action(async () => {
     requireTty();
-    await api('POST', '/briefs/generate', { root: root() }).catch(() => null);
+    await withSpinner('looking for work you shipped', () =>
+      api('POST', '/briefs/generate', { root: root() }).catch(() => null), {
+      transient: true,
+      patience: [{ afterMs: 8_000, text: 'writing the brief for what you shipped (one model call)' }],
+    });
     const items = await api('GET', `/digest?root=${encodeURIComponent(root())}`);
     if (items.length === 0) {
       console.log(paint.dim('nothing to review. the map is the long view: vouch map'));
       return;
     }
-    process.stdout.write(paint.dim(`writing question cards for ${items.length} item${items.length > 1 ? 's' : ''}... `));
-    await api('POST', '/dossiers/generate', { root: root(), nodeIds: items.map((i: any) => i.nodeId) }).catch(() => null);
-    console.log(paint.dim('ready.'));
-    console.log(paint.title(`\nHere is what landed, and what you could not explain about it. ${items.length} item${items.length > 1 ? 's' : ''}.`));
+    const plural = items.length > 1 ? 's' : '';
+    await withSpinner(`writing question cards for ${items.length} item${plural}`, () =>
+      api('POST', '/dossiers/generate', { root: root(), nodeIds: items.map((i: any) => i.nodeId) }).catch(() => null), {
+      done: `${items.length} question card${plural} ready`,
+      patience: [
+        { afterMs: 10_000, text: `writing question cards: one model call per item, ${items.length} to go` },
+        { afterMs: 35_000, text: 'writing question cards: still going, this only happens once per item' },
+      ],
+    });
+    console.log(paint.title(`\nHere is what landed, and what you could not explain about it. ${items.length} item${plural}.`));
     let done = 0;
-    for (const item of items) {
-      if (await runRep(item.nodeId)) done++;
+    for (const [i, item] of items.entries()) {
+      if (await runRep(item.nodeId, { index: i + 1, total: items.length })) done++;
     }
-    hr();
-    console.log(paint.good(`${done}/${items.length} reps done.`));
+    console.log();
+    rule('digest done', `${done}/${items.length} reps`);
     await printStatus();
   });
 
@@ -181,7 +211,11 @@ program
       }
       nodeId = dep.nodeId;
     }
-    await api('POST', '/dossiers/generate', { root: root(), nodeIds: [nodeId] }).catch(() => null);
+    await withSpinner('writing the question card', () =>
+      api('POST', '/dossiers/generate', { root: root(), nodeIds: [nodeId] }).catch(() => null), {
+      transient: true,
+      patience: [{ afterMs: 8_000, text: 'writing the question card (one model call)' }],
+    });
     await runRep(nodeId);
   });
 
@@ -203,12 +237,18 @@ program
       return;
     }
 
-    process.stdout.write(paint.dim('reading back your prompts... '));
+    const sp = spinner('reading back your prompts', {
+      patience: [
+        { afterMs: 6_000, text: 'reviewing the session, prompt by prompt' },
+        { afterMs: 20_000, text: 'reviewing the session: long one, still reading' },
+      ],
+    });
     let r: any;
     try {
       r = await api('POST', '/prompts/review', { root: root(), session: opts.session });
+      sp.succeed('read the whole session');
     } catch (e: any) {
-      console.log();
+      sp.stop();
       if (/no prompts/.test(e.message)) {
         console.log(paint.warn('No prompts recorded yet.'));
         console.log(paint.dim('Vouch records prompts through the Claude Code plugin. Install it with: vouch plugin'));
@@ -216,7 +256,7 @@ program
       }
       throw e;
     }
-    console.log(paint.dim('done.\n'));
+    console.log();
 
     const label: Record<string, string> = {
       fine: 'fine', vague: 'vague', correction: 'correction',
@@ -248,7 +288,7 @@ program
 
     if (r.avoidable > 0) {
       console.log(`\n${paint.bad(`${r.avoidable} of ${r.total} prompts were avoidable`)}`);
-      console.log(`  roughly ${paint.bad(r.estimatedTokensWasted.toLocaleString())} tokens, about ${Math.round(r.estimatedPercent)}% of the session`);
+      console.log(`  roughly ${paint.bad(r.estimatedTokensWasted.toLocaleString('en-US'))} tokens, about ${Math.round(r.estimatedPercent)}% of the session`);
       console.log(paint.dim(`  ${r.method}`));
     } else {
       console.log(`\n${paint.good('No avoidable round trips. Nothing to reclaim.')}`);
@@ -260,9 +300,15 @@ program
   .description('Everything Vouch knows about your dependencies: vulnerabilities, deprecated, stale, unused, heaviest.')
   .option('--png <path>', 'also write a shareable card')
   .action(async (opts: { png?: string }) => {
-    process.stdout.write(paint.dim('checking every dependency against the advisory databases... '));
-    const r = await api('POST', '/audit', { root: root() });
-    console.log(paint.dim('done.\n'));
+    const r = await withSpinner('checking every dependency against the advisory databases', () =>
+      api('POST', '/audit', { root: root() }), {
+      done: (a: any) => `checked ${a.scanned} dependencies against OSV, deps.dev and the npm registry`,
+      patience: [
+        { afterMs: 8_000, text: 'checking dependencies: waiting on the advisory feeds' },
+        { afterMs: 25_000, text: 'checking dependencies: slow feed, still waiting (nothing is sent, only fetched)' },
+      ],
+    });
+    console.log();
 
     const mb = (b: number) => `${(b / 1048576).toFixed(1)} MB`;
     const sev = (s: string) =>
@@ -307,7 +353,8 @@ program
 
     if (opts.png) {
       const out = resolve(opts.png);
-      const res = await api('GET', `/audit/png?root=${encodeURIComponent(root())}&out=${encodeURIComponent(out)}`);
+      const res = await withSpinner('drawing the card', () =>
+        api('GET', `/audit/png?root=${encodeURIComponent(root())}&out=${encodeURIComponent(out)}`), { transient: true });
       console.log(`\n${res.written ?? paint.warn(res.fallback)}`);
     }
   });
@@ -316,12 +363,15 @@ program
   .command('unused')
   .description('Dependencies nothing in your source imports.')
   .action(async () => {
-    process.stdout.write(paint.dim('scanning imports and sizes... '));
-    await api('POST', '/callsites/rescan', { root: root() }).catch(() => null);
-    // without fresh impact data the megabyte total silently under-reports,
-    // because only packages that had a Dossier carry an install size
-    await api('POST', '/audit', { root: root() }).catch(() => null);
-    console.log(paint.dim('done.'));
+    await withSpinner('scanning every import in your source', async () => {
+      await api('POST', '/callsites/rescan', { root: root() }).catch(() => null);
+      // without fresh impact data the megabyte total silently under-reports,
+      // because only packages that had a Dossier carry an install size
+      await api('POST', '/audit', { root: root() }).catch(() => null);
+    }, {
+      done: 'scanned every import and fetched the sizes',
+      patience: [{ afterMs: 8_000, text: 'scanning imports: fetching install sizes from the registry' }],
+    });
     const r = await api('GET', `/unused?root=${encodeURIComponent(root())}`);
     const mb = (b: number) => `${(b / 1048576).toFixed(1)} MB`;
     if (r.likelyUnused.length === 0 && r.configOnly.length === 0) {
@@ -368,14 +418,15 @@ program
   .description('Re-test what you already learned. Free, no AI call.')
   .action(async () => {
     requireTty();
-    const cards = await api('GET', `/cards?root=${encodeURIComponent(root())}`);
+    const cards = await withSpinner('finding what is due', () =>
+      api('GET', `/cards?root=${encodeURIComponent(root())}`), { transient: true });
     if (cards.length === 0) {
       console.log(paint.dim('nothing due. cards appear as knowledge ages, or after a rep leaves a gap.'));
       return;
     }
-    console.log(paint.title(`\n${cards.length} due.`));
-    for (const card of cards) await runCard(card);
-    hr();
+    console.log(paint.title(`\n${cards.length} due.`) + paint.dim('  free, no model call, so re-testing costs nothing'));
+    for (const [i, card] of cards.entries()) await runCard(card, { index: i + 1, total: cards.length });
+    console.log();
     await printStatus();
   });
 
@@ -389,14 +440,21 @@ program
       return;
     }
     if (t.vouched.length > 0) {
-      console.log(paint.title('vouched % over time'));
-      for (const p of t.vouched) console.log(`  ${p.date}  ${bar(p.vouched, 100)} ${p.vouched.toFixed(0)}%`);
+      const v = t.vouched.map((p: any) => p.vouched);
+      rule('vouched % over time', `${v[0].toFixed(0)}% ${glyph.arrow} ${v[v.length - 1].toFixed(0)}%`);
+      console.log(`  ${paint.accent(sparkline(v))}  ${paint.dim(`${v.length} days`)}\n`);
+      for (const p of t.vouched) console.log(`  ${paint.dim(p.date)}  ${bar(p.vouched, 100)} ${p.vouched.toFixed(0)}%`);
     }
     if (t.gap.length > 0) {
-      console.log(paint.title('\nthe gap, by week (lower is better calibrated)'));
+      console.log();
+      rule('the gap, by week', 'lower is better calibrated');
+      const worst = Math.max(...t.gap.map((p: any) => Math.abs(p.gap)), 1);
       for (const p of t.gap) {
         const sign = p.gap > 0 ? '+' : '';
-        console.log(`  ${p.week}  ${sign}${p.gap.toFixed(1)}  ${paint.dim(`(${p.reps} reps)`)}`);
+        const painted = p.gap > 1 ? paint.bad : p.gap < -0.5 ? paint.good : paint.warn;
+        console.log(
+          `  ${paint.dim(p.week)}  ${painted(pad(`${sign}${p.gap.toFixed(1)}`, 6))}${bar(Math.abs(p.gap), worst, 14, painted)}  ${paint.dim(`${p.reps} rep${p.reps === 1 ? '' : 's'}`)}`,
+        );
       }
     }
   });
@@ -406,9 +464,11 @@ program
   .description('Reconstruct something you shipped, then see the real brief.')
   .action(async () => {
     requireTty();
-    process.stdout.write(paint.dim('looking for recent work... '));
-    await api('POST', '/briefs/generate', { root: root() }).catch(() => null);
-    console.log(paint.dim('ready.'));
+    await withSpinner('looking for recent work', () =>
+      api('POST', '/briefs/generate', { root: root() }).catch(() => null), {
+      transient: true,
+      patience: [{ afterMs: 8_000, text: 'writing the brief for what you shipped (one model call)' }],
+    });
     const items = await api('GET', `/digest?root=${encodeURIComponent(root())}`);
     const feature = items.find((i: any) => i.kind === 'decision');
     if (!feature) {
@@ -425,13 +485,14 @@ program
   .action(async (opts: { png?: string }) => {
     if (opts.png) {
       const out = resolve(opts.png);
-      const r = await api('GET', `/map/png?root=${encodeURIComponent(root())}&out=${encodeURIComponent(out)}`);
+      const r = await withSpinner('drawing the map', () =>
+        api('GET', `/map/png?root=${encodeURIComponent(root())}&out=${encodeURIComponent(out)}`), { transient: true });
       console.log(r.written ?? paint.warn(r.fallback));
       return;
     }
     const { spawn } = await import('node:child_process');
     const dashDir = new URL('../../dashboard', import.meta.url).pathname;
-    console.log(paint.dim('starting dashboard on http://localhost:4477 ...'));
+    console.log(`${paint.accent(glyph.arrow)} ${paint.title('http://localhost:4477')}  ${paint.dim('first load compiles, give it a few seconds')}`);
     const child = spawn('npx', ['next', 'dev', '-p', '4477'], {
       cwd: dashDir,
       stdio: 'inherit',
@@ -484,6 +545,7 @@ program
     // Stop the daemon FIRST and wait for it to actually exit. Talking to it
     // here would respawn one, and a fresh daemon recreates the home directory
     // the moment it opens the database, resurrecting what we just deleted.
+    const sp = spinner('stopping the daemon', { transient: true });
     try {
       const { pid } = JSON.parse(readFileSync(daemonInfoPath(), 'utf8'));
       process.kill(pid, 'SIGTERM');
@@ -496,6 +558,7 @@ program
         }
       }
     } catch { /* no daemon running */ }
+    sp.stop();
 
     // Read repo roots straight from SQLite so no daemon is needed.
     const roots: string[] = [];
@@ -512,7 +575,7 @@ program
     }
 
     rmSync(home, { recursive: true, force: true });
-    console.log(`purged. removed ${roots.length} git hook${roots.length === 1 ? '' : 's'}, nothing left behind.`);
+    console.log(`${paint.good(glyph.tick)} purged. removed ${roots.length} git hook${roots.length === 1 ? '' : 's'}, nothing left behind.`);
   });
 
 // Errors reach the user as one plain sentence, never a stack trace.

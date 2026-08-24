@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { tempDb, seedRepo, seedNode, FakeBackend } from './helpers.js';
-import { askRep, answerRep, recordConfidenceAfter } from '../src/reps.js';
+import { askRep, answerRep, recordConfidenceAfter, isNonAnswer } from '../src/reps.js';
 import { ulid, nowIso } from '../src/util.js';
 
 function seedDossier(db: any, nodeId: string, withBody = true) {
@@ -124,10 +124,87 @@ describe('rep flow: withhold before reveal (hard rules 2 and 3, DoD #4, #9)', ()
     expect(reveal.impact.installSizeBytes).toBe(700000);
   });
 
+  it('"I don\'t know" gets the answer taught, with no grader call', async () => {
+    const db = tempDb();
+    const repo = seedRepo(db);
+    const node = seedNode(db, repo);
+    seedDossier(db, node);
+    const q = askRep(db, node)!;
+    const backend = new FakeBackend([{ verdict: 'pass', gap: '', grader_confidence: 'high' }]);
+    const reveal = await answerRep(db, backend, q.repId, 5, 'i dont know');
+
+    expect(backend.calls).toHaveLength(0); // nothing to grade, so nothing is spent
+    expect(reveal.saidUnsure).toBe(true);
+    expect(reveal.verdict).toBe('fail');
+    // the whole point: the answer they did not have is now in front of them
+    expect(reveal.expectedAnswer).toContain('process exits');
+    expect(reveal.body?.what_it_does_here).toContain('validates env');
+    // and the delta still lands, because the delta is the product
+    expect(reveal.demonstrated).toBe(1);
+    expect(reveal.delta).toBe(4);
+    // non-empty gap keeps it in the card queue, phrased as teaching not scolding
+    const row = db.prepare('SELECT gap_text FROM reps WHERE id = ?').get(q.repId) as any;
+    expect(row.gap_text).toBeTruthy();
+  });
+
+  it('a hedge that still makes a claim is graded on the claim, not waved through', async () => {
+    const db = tempDb();
+    const repo = seedRepo(db);
+    const node = seedNode(db, repo);
+    seedDossier(db, node);
+    const q = askRep(db, node)!;
+    const backend = new FakeBackend([{ verdict: 'partial', gap: 'zod throws in src/env.ts', grader_confidence: 'high' }]);
+    const reveal = await answerRep(
+      db, backend, q.repId, 5,
+      'i dont know exactly where, but i think it validates something at startup',
+    );
+    expect(backend.calls).toHaveLength(1);
+    expect(reveal.saidUnsure).toBe(false);
+    expect(reveal.verdict).toBe('partial');
+    expect(reveal.expectedAnswer).toContain('process exits'); // taught on partial too
+  });
+
+  it('the answer is taught on every verdict short of a pass, and never before the answer', async () => {
+    const db = tempDb();
+    const repo = seedRepo(db);
+    const node = seedNode(db, repo);
+    seedDossier(db, node);
+    const q = askRep(db, node)!;
+    expect(JSON.stringify(q)).not.toContain('process exits'); // rule 3 still holds
+    const reveal = await answerRep(db, new FakeBackend([], true), q.repId, 6, 'something plausible');
+    expect(reveal.verdict).toBe('ungraded'); // grader down: still teach
+    expect(reveal.expectedAnswer).toContain('process exits');
+  });
+
   it('out-of-zone and dead nodes never get reps (hard rule 4)', () => {
     const db = tempDb();
     const repo = seedRepo(db);
     expect(askRep(db, seedNode(db, repo, { in_zone: 0 }))).toBeNull();
     expect(askRep(db, seedNode(db, repo, { alive: 0 }))).toBeNull();
+  });
+});
+
+describe('isNonAnswer: an honest "no idea" versus a real attempt', () => {
+  it('catches bare disclaimers', () => {
+    for (const t of [
+      'i dont know', "I don't know.", 'I do not know', 'idk', 'dunno', 'no idea',
+      'no clue', 'honestly no idea', 'not sure', 'not really sure', 'unsure',
+      'i cant remember', 'i forget', 'i dont remember at all', 'no idea sorry',
+      '?', '...', 'n/a', 'nope', '', '   ',
+    ]) {
+      expect(isNonAnswer(t), t).toBe(true);
+    }
+  });
+
+  it('leaves anything carrying a claim to the grader', () => {
+    for (const t of [
+      'i dont know exactly where it is instantiated, but i know it was used for payments',
+      'not sure of the file, but zod validates env vars at boot',
+      'it exits before the server binds',
+      'src/env.ts, line 40ish',
+      'maybe the boot sequence',
+    ]) {
+      expect(isNonAnswer(t), t).toBe(false);
+    }
   });
 });

@@ -16,12 +16,13 @@ export const DOSSIER_SCHEMA = {
     },
     probe_expected: {
       type: 'string',
-      description: 'What a correct answer must contain. Withheld until reveal.',
+      description:
+        'The answer itself, stated plainly enough to show the developer verbatim after they attempt the probe. Withheld until reveal.',
     },
   },
 } as const;
 
-export const DOSSIER_SYSTEM = `You are writing a dependency dossier for a developer who must be able to defend every package in their own repository. You are given the package name and its REAL call sites from their code. Ground every sentence in those call sites. Never recite the package's marketing pitch. The probe_question must be answerable only by someone who understands what this package does in THIS codebase, and probe_expected must state concretely what a correct answer contains. Write plainly. Never use an em-dash.`;
+export const DOSSIER_SYSTEM = `You are writing a dependency dossier for a developer who must be able to defend every package in their own repository. You are given the package name and its REAL call sites from their code. Ground every sentence in those call sites. Never recite the package's marketing pitch. The probe_question must be answerable only by someone who understands what this package does in THIS codebase, and probe_expected must state concretely what a correct answer contains, written as the answer itself so it can be shown to the developer verbatim after they attempt it. When you are told no call sites were found, the package is not used here: say so in what_it_does_here, and do NOT ask where it is imported or instantiated, because that question has no answer in this repository and teaches nothing. Ask instead why it is in the manifest, what would have to change to remove it, or what it was brought in to do. Write plainly. Never use an em-dash.`;
 
 export const GRADE_SCHEMA = {
   type: 'object',
@@ -30,13 +31,14 @@ export const GRADE_SCHEMA = {
     verdict: { type: 'string', enum: ['pass', 'partial', 'fail'] },
     gap: {
       type: 'string',
-      description: 'The specific thing the answer failed to produce. Empty string when verdict is pass.',
+      description:
+        'The missing piece, stated as the fact the developer should now learn, not as what they failed to write. Empty string when verdict is pass.',
     },
     grader_confidence: { type: 'string', enum: ['high', 'low'] },
   },
 } as const;
 
-export const GRADE_SYSTEM = `You are grading one piece of text against another. The EXPECTED text is the sole ground truth; the developer's ANSWER either demonstrates that understanding or it does not. You have no filesystem, no repository, and no tools, and you need none: never attempt to read files, never say you cannot verify something, never require access to anything. Compare the two texts and grade the substance, not the wording. pass: the answer demonstrates the understanding the expected text describes. partial: some of it, with a real gap. fail: the answer is wrong or empty of the required understanding. Set grader_confidence to low whenever a fair human grader might disagree; a low-confidence grade never promotes, so err toward low. In gap, name the specific missing piece in one sentence, quoting only from the expected text. Never use an em-dash.`;
+export const GRADE_SYSTEM = `You are grading one piece of text against another. The EXPECTED text is the sole ground truth; the developer's ANSWER either demonstrates that understanding or it does not. You have no filesystem, no repository, and no tools, and you need none: never attempt to read files, never say you cannot verify something, never require access to anything. Compare the two texts and grade the substance, not the wording. pass: the answer demonstrates the understanding the expected text describes. partial: some of it, with a real gap. fail: the answer is wrong or empty of the required understanding. Set grader_confidence to low whenever a fair human grader might disagree; a low-confidence grade never promotes, so err toward low. In gap, TEACH the missing piece: state it as the fact itself, in one sentence, drawn only from the expected text. Never write the gap as a complaint about what the developer failed to do, and never phrase it in the third person: "the boot sequence exits before the server binds" not "did not mention the boot sequence" or "the developer did not provide a file path". If the answer is an explicit admission of not knowing, the verdict is fail with high confidence, and the gap is simply the answer. Never use an em-dash.`;
 
 export const CONCEPTS_SCHEMA = {
   type: 'object',
@@ -105,9 +107,13 @@ export const DEFEND_GRADE_SCHEMA = {
   required: ['verdict', 'gap', 'grader_confidence'],
   properties: {
     verdict: { type: 'string', enum: ['pass', 'partial', 'fail'] },
-    gap: { type: 'string', description: 'The specific thing the reconstruction missed. Empty string when verdict is pass.' },
+    gap: {
+      type: 'string',
+      description:
+        'What the reconstruction missed, stated as the fact itself rather than as a shortfall. Empty string when verdict is pass.',
+    },
     grader_confidence: { type: 'string', enum: ['high', 'low'] },
   },
 } as const;
 
-export const DEFEND_GRADE_SYSTEM = `You are grading one piece of text against another. The developer was asked to reconstruct, from memory, what a change they shipped does and what it assumes. You are given the real brief (ground truth) and their reconstruction. You have no filesystem, no repository, and no tools, and you need none: never attempt to read files, never say you cannot verify something, never require access to anything. Grade whether their reconstruction demonstrates the understanding in the brief's approach and assumptions. pass: they captured what it does and at least one load-bearing assumption. partial: they captured what it does but no real assumption, or the reverse. fail: the reconstruction is wrong or empty of the required understanding. Set grader_confidence to low whenever a fair human grader might disagree; a low-confidence grade never promotes, so err toward low. In gap, name the single most important thing they missed, in one sentence, quoting only from the brief. Never use an em-dash.`;
+export const DEFEND_GRADE_SYSTEM = `You are grading one piece of text against another. The developer was asked to reconstruct, from memory, what a change they shipped does and what it assumes. You are given the real brief (ground truth) and their reconstruction. You have no filesystem, no repository, and no tools, and you need none: never attempt to read files, never say you cannot verify something, never require access to anything. Grade whether their reconstruction demonstrates the understanding in the brief's approach and assumptions. pass: they captured what it does and at least one load-bearing assumption. partial: they captured what it does but no real assumption, or the reverse. fail: the reconstruction is wrong or empty of the required understanding. Set grader_confidence to low whenever a fair human grader might disagree; a low-confidence grade never promotes, so err toward low. In gap, TEACH the single most important thing they missed: state it as the fact itself, in one sentence, drawn only from the brief, never as a complaint about what they failed to write and never in the third person. Never use an em-dash.`;

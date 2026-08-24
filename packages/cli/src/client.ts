@@ -2,6 +2,7 @@ import { spawn } from 'node:child_process';
 import { readFileSync, existsSync } from 'node:fs';
 import { createRequire } from 'node:module';
 import { daemonInfoPath } from '@vouch/core';
+import { spinner } from './spinner.js';
 
 const require = createRequire(import.meta.url);
 
@@ -43,7 +44,10 @@ export async function daemonPort(): Promise<number> {
       await stopStale(); // an older build is running: replace it
     } catch { /* stale info file; respawn below */ }
   }
-  // spawn detached and wait for the info file
+  // Spawn detached and wait for the info file. This is the one wait a user
+  // hits without asking for anything, so it gets a line of its own; nested
+  // under a command's own spinner it borrows that line instead.
+  const sp = spinner('starting the vouch daemon', { transient: true });
   const daemonMain = require.resolve('@vouch/core/daemon');
   const child = spawn(process.execPath, ['--no-warnings', daemonMain], {
     detached: true,
@@ -56,10 +60,14 @@ export async function daemonPort(): Promise<number> {
     if (existsSync(infoPath)) {
       try {
         const { port } = JSON.parse(readFileSync(infoPath, 'utf8'));
-        if (await health(port, DAEMON_VERSION)) return port;
+        if (await health(port, DAEMON_VERSION)) {
+          sp.stop();
+          return port;
+        }
       } catch { /* not ready yet */ }
     }
   }
+  sp.fail('the vouch daemon did not come up');
   throw new Error('vouch daemon failed to start (see ~/.vouch/daemon.log)');
 }
 

@@ -19,7 +19,7 @@ These are not preferences. A build that violates one of them has failed.
 
 1. **Nothing blocks.** Vouch never prevents an AI call, a commit, or a push. No exceptions, no opt-in strict mode in Wave 1.
 2. **Confidence before the rep, always.** Every rep opens with a 1-to-7 self-rating and closes by showing the delta. This is the product, not telemetry. A rep implemented without the rating is not a rep.
-3. **Withhold before reveal.** Briefs and dossier answers are generated when the code lands and are not serialized to any client until the user has submitted an attempt. Enforced by test, not by convention.
+3. **Withhold before reveal.** Briefs and dossier answers are generated when the code lands and are not serialized to any client until the user has submitted an attempt. Enforced by test, not by convention. The corollary is binding too: once an attempt is on record, the answer is shown. Withholding it past that point makes a rep a quiz rather than a rep.
 4. **Keep-sharp zones gate everything.** No node outside a declared zone ever generates a rep, enters the score, or decays.
 5. **At most one free-text answer per rep, and at most one Defend rep per digest.** Everything else is recognition-based. The undesirable-difficulty boundary is real for high-element-interactivity material (RESEARCH §3), and a multi-file feature is exactly that, so the Defend rep asks for one short reconstruction and then switches to recognition items. A Dossier probe about a single package is low-interactivity, so its one-line free-text answer stays. (Rev A said "one free-text answer per session", which read as one per digest and contradicted the Dossier flow that Phase 0 shipped. The research constrains blank-page effort on *interactive* material, not the count of short answers, so this is the wording that matches the evidence.)
 6. **The digest caps at five items.** Un-actioned items age into `decayed` and colour the map. Vouch never nags, never counts a streak against the user, and never shows a growing backlog.
@@ -304,12 +304,16 @@ Generated from the keyless feeds plus one extraction call. Schema:
     "replaced": { "type": ["string", "null"], "description": "What it displaced, if the diff shows something removed" },
     "if_it_vanished": { "type": "string", "description": "The concrete work required to remove it" },
     "probe_question": { "type": "string", "description": "One question that cannot be answered without understanding its role here" },
-    "probe_expected": { "type": "string", "description": "What a correct answer must contain. Withheld until reveal." }
+    "probe_expected": { "type": "string", "description": "The answer itself, written to be shown verbatim after an attempt. Withheld until reveal, released at it." }
   }
 }
 ```
 
-The rep shown to the user: the package name, its real call sites from `call_sites` (never invented, §2), a 1-to-7 confidence rating, then `probe_question`. Reveal shows `what_it_does_here`, `if_it_vanished`, the impact block from §8, and the graded delta.
+The rep shown to the user: the package name, its real call sites from `call_sites` (never invented, §2), a 1-to-7 confidence rating, then `probe_question`. Reveal shows `what_it_does_here`, `if_it_vanished`, the impact block from §8, and the graded delta. On anything short of a pass it also shows `probe_expected` as `the answer`: rule 3 is withhold *before* reveal, not withhold forever, and a probe you got wrong and were never told the answer to teaches nothing.
+
+**"I don't know" is an answer.** A reply that is nothing but a disclaimer ("no idea", "I don't remember") is recognized locally by `isNonAnswer`, so it costs no grader call and never comes back as a note about what the developer failed to type. It grades `fail`, because that is what the evidence says, and the delta still lands: rating a 5 and then admitting you have no idea is the single most useful reading Vouch takes. What follows the verdict is the answer, not a scolding. A hedge that still carries a claim ("not sure where, but I think it handles payments") is graded on the claim.
+
+When a package has no call sites, the probe must not ask where it is imported: that question has no answer in this repository and teaches nothing. `DOSSIER_SYSTEM` redirects it to why the package is in the manifest and what removing it would take.
 
 **Provenance.** "Why it entered" is the session and commit that introduced it, from git. Where the Wave 2 plugin captured a stated reason live, show it. Never reconstruct it by mining transcripts (rule 7).
 

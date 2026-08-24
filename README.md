@@ -122,15 +122,18 @@ vouch digest
 It picks the important things that landed and asks you one real question each. You rate your confidence 1 to 7 first, so you find out where you were wrong about yourself:
 
 ```
-zod
-  where it lives in your code:
-    src/api/env.ts:1  import { z } from 'zod';
+── zod ────────────────────────────────────────────────────────── 2/5 ──
+  where it lives in your code
+  src/api/env.ts:1  import { z } from 'zod';
 
-How well do you understand what zod does here? [1..7]  6
-> What happens at boot when an env var fails validation?
+How well do you understand what zod does here?
+  1 no idea ──────── 7 certain  6 (confident)
+
+What happens at boot when an env var fails validation?
+› 
 ```
 
-Answer it, and you get the real answer plus install size, licence, known vulnerabilities, and for paid services, what it costs at 10k users and what breaks when it goes down.
+Answer it, and you get the real answer plus install size, licence, known vulnerabilities, and for paid services, what it costs at 10k users and what breaks when it goes down. Say "I don't know" and it simply tells you, then brings the question back another day.
 
 ### 5. A check on features you shipped but cannot describe
 
@@ -144,9 +147,9 @@ On a real wishlist feature, that brief surfaced things the author had not notice
 
 ```
 where it breaks first
-  SSR execution throws ReferenceError: window.localStorage in readLocal()
-  Rapid add() calls create duplicates, no client-side dedup
-  localStorage quota exceeded leaves the cache diverged from storage
+  · SSR execution throws ReferenceError: window.localStorage in readLocal()
+  · Rapid add() calls create duplicates, no client-side dedup
+  · localStorage quota exceeded leaves the cache diverged from storage
 ```
 
 Three real bugs, found by being asked to explain your own code.
@@ -154,7 +157,9 @@ Three real bugs, found by being asked to explain your own code.
 ### 6. One honest number
 
 ```
-the gap: you rated 6/7, you demonstrated 4/7
+the gap: 2 rungs of confidence you had not earned
+  you rated    ██████░ 6/7
+  you showed   ████░░░ 4/7
 ```
 
 **The Gap** is how far your confidence runs ahead of what you can actually produce, per area of your codebase. It is specific, personal, and very hard to argue with. Watching it shrink is the point of the whole tool.
