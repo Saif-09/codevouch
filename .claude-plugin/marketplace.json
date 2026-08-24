@@ -1,0 +1,23 @@
+{
+  "name": "codevouch",
+  "owner": {
+    "name": "Saif Siddiqui",
+    "url": "https://github.com/Saif-09"
+  },
+  "plugins": [
+    {
+      "name": "vouch",
+      "source": "./packages/plugin",
+      "description": "Run vouch from inside Claude Code with /vouch, and get asked to predict the shape of an answer before you read it.",
+      "version": "0.2.0",
+      "homepage": "https://github.com/Saif-09/codevouch",
+      "keywords": [
+        "learning",
+        "calibration",
+        "comprehension",
+        "dependencies"
+      ]
+    }
+  ],
+  "description": "Vouch: know which parts of your own codebase you can actually defend."
+}

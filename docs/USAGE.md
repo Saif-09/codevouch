@@ -147,6 +147,23 @@ Allow the recorder once in `~/.claude/settings.json`, or Claude will ask permiss
 
 ---
 
+### The /vouch command
+
+With the plugin installed, `/vouch` runs these commands inside the session instead of a second terminal, and then acts on what came back.
+
+```
+/vouch              status, and the next thing worth doing
+/vouch audit        the advisory sweep, read back and acted on
+/vouch unused       every candidate checked against your config before you delete it
+/vouch prompts      the session review, cut down to the one habit worth changing
+```
+
+`/vouch unused` is the one worth having: vouch finds imports in source only, so a package used from a config file or a build script shows up as a false positive. Claude greps the whole repo for each candidate and splits the list into what is genuinely dead and what is used, naming the file that proves it.
+
+Reps stay in the terminal on purpose. `init`, `digest`, `dossier`, `defend` and `cards` ask you questions, so they need one, and `/vouch digest` will tell you that rather than pretending.
+
+---
+
 ## 7. What leaves your machine
 
 Redacted code excerpts go to Anthropic through your local `claude` CLI, which is where they already go when you build with it. Package **names** go to three public registries (deps.dev, OSV, npm) for licence and vulnerability data.

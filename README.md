@@ -135,6 +135,15 @@ What happens at boot when an env var fails validation?
 
 Answer it, and you get the real answer plus install size, licence, known vulnerabilities, and for paid services, what it costs at 10k users and what breaks when it goes down. Say "I don't know" and it simply tells you, then brings the question back another day.
 
+Or, without leaving Claude Code:
+
+```
+/vouch audit        the advisory sweep, read back and acted on
+/vouch unused       every candidate checked against your config before you delete it
+```
+
+The plugin adds `/vouch`, so these run in the session you are already in. Reps stay in the terminal, because they ask you questions.
+
 ### 5. A check on features you shipped but cannot describe
 
 ```sh

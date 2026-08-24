@@ -1,10 +1,20 @@
 {
   "name": "vouch",
   "displayName": "Vouch",
-  "version": "0.1.0",
-  "description": "Predict before you read. Vouch asks you to guess the shape of an answer before Claude gives it, and tracks how often you were right.",
+  "version": "0.2.0",
+  "description": "Predict before you read, and run vouch without leaving Claude Code. Adds the /vouch command, plus a prediction step before Claude answers.",
   "license": "MIT",
-  "keywords": ["learning", "calibration", "comprehension"],
+  "keywords": [
+    "learning",
+    "calibration",
+    "comprehension"
+  ],
   "hooks": "./hooks/hooks.json",
-  "mcpServers": "./.mcp.json"
+  "mcpServers": "./.mcp.json",
+  "commands": "./commands",
+  "author": {
+    "name": "Saif Siddiqui",
+    "url": "https://github.com/Saif-09"
+  },
+  "homepage": "https://github.com/Saif-09/codevouch"
 }

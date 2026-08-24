@@ -400,16 +400,30 @@ program
   .action(async () => {
     const { fileURLToPath } = await import('node:url');
     const here = fileURLToPath(new URL('.', import.meta.url));
-    const dir = resolve(here, '..', '..', 'plugin');
+    // Two layouts, and the published one is the layout every user actually has:
+    // installed, main.js sits at <pkg>/dist/ and the plugin at <pkg>/plugin; in
+    // the dev checkout it is packages/cli/dist/ and packages/plugin. Resolving
+    // only the second printed a node_modules/plugin path that never existed, so
+    // nobody who installed from npm could follow these instructions.
+    const dir = [resolve(here, '..', 'plugin'), resolve(here, '..', '..', 'plugin')]
+      .find((p) => existsSync(p)) ?? resolve(here, '..', 'plugin');
     console.log(paint.title('Vouch for Claude Code'));
-    console.log(paint.dim('Before Claude answers, it asks you to guess the shape of the answer first.'));
+    console.log(paint.dim('Two things: before Claude answers, it asks you to guess the shape of the'));
+    console.log(paint.dim('answer first. And /vouch runs these commands without leaving the session.'));
     console.log(`\n${paint.em('try it for one session')}`);
     console.log(`  claude --plugin-dir ${dir}`);
     console.log(`\n${paint.em('or install it permanently')}`);
-    console.log(`  mkdir -p ~/.claude/skills && ln -s ${dir} ~/.claude/skills/vouch`);
+    console.log('  claude plugin marketplace add Saif-09/codevouch');
+    console.log('  claude plugin install vouch@codevouch');
+    console.log(paint.dim(`  (or symlink this copy: mkdir -p ~/.claude/skills && ln -s ${dir} ~/.claude/skills/vouch)`));
     console.log(`\n${paint.em('allow the recorder once')} ${paint.dim('(otherwise Claude asks every time)')}`);
     console.log('  add to ~/.claude/settings.json under permissions.allow:');
     console.log(paint.dim('    "mcp__plugin_vouch_vouch__vouch_record_hunch"'));
+    console.log(`\n${paint.em('then, in any session')}`);
+    console.log(`  /vouch            ${paint.dim('status, and the next thing worth doing')}`);
+    console.log(`  /vouch audit      ${paint.dim('the advisory sweep, read back and acted on')}`);
+    console.log(`  /vouch unused     ${paint.dim('every candidate verified against your config before you delete it')}`);
+    console.log(paint.dim('  reps stay in the terminal: they ask you questions, so they need one.'));
     console.log(`\n${paint.dim('tuning: VOUCH_HUNCH=off disables it, VOUCH_HUNCH_COOLDOWN (minutes, default 45), VOUCH_HUNCH_SAMPLE (1 in N, default 3)')}`);
   });
 
