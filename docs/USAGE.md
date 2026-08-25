@@ -105,6 +105,8 @@ vouch zones               # review what you chose to keep sharp
 
 **Calibration** (needs the plugin) is the share of your predictions that matched.
 
+**Recall** (needs the plugin) is the share of mid-session checkpoints where you could still name what you had changed and why.
+
 Nothing here is a streak, and no total only goes down.
 
 ---
@@ -143,6 +145,24 @@ Allow the recorder once in `~/.claude/settings.json`, or Claude will ask permiss
 
 ```json
 { "permissions": { "allow": ["mcp__plugin_vouch_vouch__vouch_record_hunch"] } }
+```
+
+### The long-session checkpoint
+
+The prediction step looks forward. On a long session there is a second, backward-looking question: an hour in, can you still say what you changed?
+
+Once a session has been running 45 minutes and has more than about eight prompts, Claude will stop at your next prompt and ask you to name, from memory, the two or three changes that matter most and one decision you would have to defend in review. It names the files that churned hardest but does not tell you what happened in them, because a summary you read first is a summary you will believe you already knew. Then it tells you what you missed, and answers what you originally asked.
+
+Checkpoints are 1 to 2 hours apart, so a full afternoon gets one or two. A session that only read code gets none, and you can always reply "skip".
+
+```sh
+VOUCH_CHECKPOINT=off         # turn it off entirely
+VOUCH_CHECKPOINT_MIN=90      # no closer together than 90 minutes
+VOUCH_CHECKPOINT_MAX=180     # and no further apart than 3 hours
+```
+
+```json
+{ "permissions": { "allow": ["mcp__plugin_vouch_vouch__vouch_record_checkpoint"] } }
 ```
 
 ---

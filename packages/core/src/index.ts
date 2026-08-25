@@ -22,6 +22,7 @@ export * from './decay.js';
 export * from './cards.js';
 export * from './promote.js';
 export * from './hunch.js';
+export * from './checkpoint.js';
 export * from './unused.js';
 export * from './audit.js';
 export * from './promptlog.js';

@@ -1,7 +1,7 @@
 #!/usr/bin/env -S node --no-warnings
 /**
- * Minimal stdio MCP server exposing the one tool Claude needs to report a
- * Hunch exchange back to Vouch.
+ * Minimal stdio MCP server exposing the tools Claude needs to report a Hunch
+ * or a Checkpoint exchange back to Vouch.
  *
  * This exists because the prediction and its outcome live only in the
  * conversation, and hard rule 7 forbids reading transcripts. An MCP tool is
@@ -28,7 +28,50 @@ const TOOLS = [
       },
     },
   },
+  {
+    name: 'vouch_record_checkpoint',
+    description:
+      'Record the outcome of a Vouch mid-session checkpoint. Call this exactly once, after you have answered the user\'s original request, whenever a VOUCH CHECKPOINT instruction block asked you to run a recall step.',
+    inputSchema: {
+      type: 'object',
+      required: ['repo_root', 'recalled', 'verdict'],
+      properties: {
+        repo_root: { type: 'string', description: 'Absolute path of the repository the user is working in' },
+        recalled: { type: 'string', description: 'What the user recalled, verbatim. Use "skip" if they declined.' },
+        verdict: {
+          type: 'string',
+          enum: ['pass', 'partial', 'fail', 'skip'],
+          description: 'pass if they named the important changes and a real decision, partial if they got some of it, fail if they could not. Use skip if they declined.',
+        },
+        missed: { type: 'string', description: 'One line naming what they missed or got wrong' },
+      },
+    },
+  },
 ];
+
+const HANDLERS = {
+  vouch_record_hunch: (core, db, args) => {
+    const res = core.recordHunch(db, {
+      repoRoot: args.repo_root,
+      topic: args.topic,
+      prediction: args.prediction,
+      matched: Boolean(args.matched),
+      note: args.note,
+    });
+    const cal = res.calibration === null ? 'n/a' : `${Math.round(res.calibration)}%`;
+    return `Recorded. Calibration now ${cal}.`;
+  },
+  vouch_record_checkpoint: (core, db, args) => {
+    const res = core.recordCheckpoint(db, {
+      repoRoot: args.repo_root,
+      recalled: args.recalled,
+      verdict: args.verdict,
+      missed: args.missed,
+    });
+    const rec = res.recall === null ? 'n/a' : `${Math.round(res.recall)}%`;
+    return `Checkpoint recorded. Recall now ${rec}.`;
+  },
+};
 
 function send(msg) {
   process.stdout.write(`${JSON.stringify(msg)}\n`);
@@ -59,7 +102,8 @@ async function handle(msg) {
   }
   if (method === 'tools/call') {
     const args = params?.arguments ?? {};
-    if (params?.name !== 'vouch_record_hunch') {
+    const run = HANDLERS[params?.name];
+    if (!run) {
       failure(id, `unknown tool: ${params?.name}`);
       return;
     }
@@ -71,17 +115,7 @@ async function handle(msg) {
       const core = await loadCore();
       const db = core.openDb(dbFile());
       try {
-        const res = core.recordHunch(db, {
-          repoRoot: args.repo_root,
-          topic: args.topic,
-          prediction: args.prediction,
-          matched: Boolean(args.matched),
-          note: args.note,
-        });
-        const cal = res.calibration === null ? 'n/a' : `${Math.round(res.calibration)}%`;
-        result(id, {
-          content: [{ type: 'text', text: `Recorded. Calibration now ${cal}.` }],
-        });
+        result(id, { content: [{ type: 'text', text: run(core, db, args) }] });
       } finally {
         db.close();
       }

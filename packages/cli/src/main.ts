@@ -66,6 +66,9 @@ async function printStatus(): Promise<void> {
   if (s.calibration !== null && s.calibration !== undefined) {
     console.log(`  ${paint.dim(pad('calibration', 12))}${bar(s.calibration, 100, 22)}  ${String(Math.round(s.calibration)).padStart(3)}%`);
   }
+  if (s.recall !== null && s.recall !== undefined) {
+    console.log(`  ${paint.dim(pad('recall', 12))}${bar(s.recall, 100, 22)}  ${String(Math.round(s.recall)).padStart(3)}%`);
+  }
 
   if (s.gapPerZone.length > 0) {
     console.log(`\n  ${paint.em('the gap')}  ${paint.dim(`${glyph.dot} what you rated minus what you showed, per zone`)}`);
@@ -425,6 +428,8 @@ program
     console.log(`  /vouch unused     ${paint.dim('every candidate verified against your config before you delete it')}`);
     console.log(paint.dim('  reps stay in the terminal: they ask you questions, so they need one.'));
     console.log(`\n${paint.dim('tuning: VOUCH_HUNCH=off disables it, VOUCH_HUNCH_COOLDOWN (minutes, default 45), VOUCH_HUNCH_SAMPLE (1 in N, default 3)')}`);
+    console.log(paint.dim('  long sessions also get a checkpoint: recall what you changed, 1 to 2 hours apart.'));
+    console.log(paint.dim('  VOUCH_CHECKPOINT=off disables it, VOUCH_CHECKPOINT_MIN / VOUCH_CHECKPOINT_MAX (minutes, default 60 / 120)'));
   });
 
 program

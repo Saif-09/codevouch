@@ -71,6 +71,22 @@ export async function aiAuthored(root: string, before: string, after: string): P
   return false;
 }
 
+/**
+ * Lines added plus deleted per file since `base`, working tree included.
+ * Binary files report `-` for both counts and are skipped rather than
+ * guessed at.
+ */
+export async function churnSince(root: string, base: string): Promise<{ path: string; churn: number }[]> {
+  const raw = await git(root).raw(['diff', '--numstat', base]);
+  const out: { path: string; churn: number }[] = [];
+  for (const line of raw.split('\n')) {
+    const [add, del, path] = line.split('\t');
+    if (!path || add === '-' || del === '-') continue;
+    out.push({ path, churn: Number(add) + Number(del) });
+  }
+  return out;
+}
+
 export async function listFiles(root: string): Promise<string[]> {
   const raw = await git(root).raw(['ls-files']);
   return raw.split('\n').filter(Boolean);

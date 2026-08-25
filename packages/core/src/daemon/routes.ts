@@ -24,6 +24,7 @@ import { buildMapModel } from '../map.js';
 import { renderMapSvg, renderShareSvg, renderAuditSvg } from '../mapsvg.js';
 import { svgToPngFile } from '../mappng.js';
 import { chooseBackend, metered, type ExtractionBackend } from '../extraction.js';
+import { recall } from '../checkpoint.js';
 import { ulid, nowIso, mapLimit } from '../util.js';
 import { DAEMON_VERSION } from './version.js';
 import { readFileSync } from 'node:fs';
@@ -210,6 +211,7 @@ export const routes: Route[] = [
         vouchedPct: vouchedPct(ctx.db, repo.id),
         gapPerZone: gapPerZone(ctx.db, repo.id),
         calibration: calibration(ctx.db, repo.id),
+        recall: recall(ctx.db, repo.id),
         decayedNow: decayed,
         dueCards: dueCards(ctx.db, repo.id).length,
         pendingDigestItems: pending,

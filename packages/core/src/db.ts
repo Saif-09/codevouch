@@ -164,6 +164,18 @@ CREATE TABLE IF NOT EXISTS prompts (
   UNIQUE (claude_session, seq)
 );
 
+CREATE TABLE IF NOT EXISTS checkpoints (
+  id TEXT PRIMARY KEY,
+  repo_id TEXT NOT NULL REFERENCES repos(id),
+  claude_session TEXT NOT NULL,
+  subject_json TEXT NOT NULL,   -- the files the session actually churned
+  recalled TEXT,                -- redacted before it is ever written
+  verdict TEXT CHECK (verdict IN ('pass','partial','fail','skip')),
+  missed TEXT,
+  asked_at TEXT NOT NULL,
+  answered_at TEXT
+);
+
 CREATE TABLE IF NOT EXISTS extraction_calls (
   id TEXT PRIMARY KEY,
   task TEXT NOT NULL,
@@ -176,6 +188,7 @@ CREATE INDEX IF NOT EXISTS idx_nodes_repo ON nodes(repo_id, alive, in_zone);
 CREATE INDEX IF NOT EXISTS idx_states_node ON node_states(node_id, at);
 CREATE INDEX IF NOT EXISTS idx_reps_node ON reps(node_id, asked_at);
 CREATE INDEX IF NOT EXISTS idx_prompts_session ON prompts(claude_session, seq);
+CREATE INDEX IF NOT EXISTS idx_checkpoints_session ON checkpoints(claude_session, asked_at);
 `;
 
 /**
