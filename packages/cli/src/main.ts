@@ -505,12 +505,28 @@ program
       return;
     }
     const { spawn } = await import('node:child_process');
-    const dashDir = new URL('../../dashboard', import.meta.url).pathname;
+    const { fileURLToPath } = await import('node:url');
+    // Run the dashboard's own next with our own node. `npx` is not guaranteed to
+    // be on PATH (a node install without npm, a sandboxed shell), and spawn
+    // reports a missing cwd as ENOENT on the command name too, so both of those
+    // failures used to read as "spawn npx ENOENT" with nothing to act on.
+    const dashDir = fileURLToPath(new URL('../../dashboard/', import.meta.url));
+    const nextBin = resolve(dashDir, 'node_modules/next/dist/bin/next');
+    if (!existsSync(nextBin)) {
+      console.log(paint.warn('the dashboard is not installed here.'));
+      console.log(paint.dim(`looked for ${nextBin}`));
+      console.log(paint.dim(`in a vouch checkout, run ${paint.em('pnpm install')}. Otherwise: ${paint.em('vouch map --png map.png')}`));
+      return;
+    }
     console.log(`${paint.accent(glyph.arrow)} ${paint.title('http://localhost:4477')}  ${paint.dim('first load compiles, give it a few seconds')}`);
-    const child = spawn('npx', ['next', 'dev', '-p', '4477'], {
+    const child = spawn(process.execPath, [nextBin, 'dev', '-p', '4477'], {
       cwd: dashDir,
       stdio: 'inherit',
       env: { ...process.env, VOUCH_REPO_ROOT: root() },
+    });
+    child.on('error', (err) => {
+      console.log(paint.bad(`could not start the dashboard: ${err.message}`));
+      process.exit(1);
     });
     child.on('exit', (code) => process.exit(code ?? 0));
   });

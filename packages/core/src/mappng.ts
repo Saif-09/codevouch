@@ -1,4 +1,5 @@
-import { writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
+import { dirname } from 'node:path';
 
 /**
  * Local rasterisation: no account, no upload, no network call (spec §10).
@@ -16,11 +17,14 @@ export async function svgToPngFile(svg: string, outPath: string): Promise<string
     ({ Resvg } = await import('@resvg/resvg-js'));
   } catch {
     const svgPath = outPath.replace(/\.png$/i, '') + '.svg';
+    mkdirSync(dirname(svgPath), { recursive: true });
     writeFileSync(svgPath, svg);
     throw new PngUnavailableError(
       `PNG export needs the optional @resvg/resvg-js package, which is not installed. Wrote ${svgPath} instead.`,
     );
   }
+  // The user named this path; creating its parent beats a bare ENOENT.
+  mkdirSync(dirname(outPath), { recursive: true });
   const resvg = new Resvg(svg, {
     fitTo: { mode: 'width', value: 1200 },
     font: { loadSystemFonts: true, defaultFontFamily: 'Helvetica' },

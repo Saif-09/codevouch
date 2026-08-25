@@ -2,7 +2,7 @@ import { createRequire } from 'node:module';
 import { homedir } from 'node:os';
 import { join, dirname } from 'node:path';
 import { existsSync } from 'node:fs';
-import { fileURLToPath } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 /**
  * Locate the compiled core. The plugin scripts run inside Claude Code, not
@@ -35,13 +35,13 @@ function coreDir() {
  */
 export async function loadCoreModules(names) {
   const dir = coreDir();
-  const mods = await Promise.all(names.map((n) => import(join(dir, `${n}.js`))));
+  const mods = await Promise.all(names.map((n) => import(pathToFileURL(join(dir, `${n}.js`)).href)));
   return Object.assign({}, ...mods);
 }
 
 /** Full core, for the paths where startup time does not matter. */
 export async function loadCore() {
-  return import(join(coreDir(), 'index.js'));
+  return import(pathToFileURL(join(coreDir(), 'index.js')).href);
 }
 
 export function vouchHomeDir() {

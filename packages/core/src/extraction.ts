@@ -73,7 +73,16 @@ export class ClaudeCliBackend implements ExtractionBackend {
       }, TIMEOUT_MS);
       child.stdout.on('data', (d) => (out += d));
       child.stderr.on('data', (d) => (err += d));
-      child.on('error', (e) => { clearTimeout(timer); reject(new ExtractionError(`spawn claude: ${e.message}`)); });
+      child.on('error', (e: any) => {
+        clearTimeout(timer);
+        // ENOENT means the CLI is not on PATH, which is how this fails on a
+        // fresh machine or under a node install without one. Extraction is
+        // caught and degraded by most callers, so the message is the only
+        // trace a user ever sees: it has to name the fix.
+        reject(new ExtractionError(e.code === 'ENOENT'
+          ? `${this.bin} is not on PATH. Install the Claude Code CLI, or point VOUCH_CLAUDE_BIN at the binary.`
+          : `spawn ${this.bin}: ${e.message}`));
+      });
       child.on('close', (code) => {
         clearTimeout(timer);
         if (code === 0) resolve(out);
